@@ -3,7 +3,6 @@ package tests
 import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"fmt"
 	. "github.com/avekceeb/nfsverificator/nfs40"
 	"github.com/avekceeb/nfsverificator/rpc"
 	"io"
@@ -17,6 +16,8 @@ var (
 	res            io.ReadSeeker
 	err            error
 	reply          COMPOUND4res
+	clientId       uint64
+	verifier       [NFS4_VERIFIER_SIZE]byte
 )
 
 var _ = Describe("NFSv4.0", func() {
@@ -32,7 +33,6 @@ var _ = Describe("NFSv4.0", func() {
 	}
 
 	BeforeEach(func() {
-		fmt.Println(">>>>>>>>>>>>>>>>>")
 		rpcClient, err = rpc.DialService(Config.ServerHost, Config.ServerPort)
 		//defer client.Close()
 		if err != nil {
@@ -43,7 +43,6 @@ var _ = Describe("NFSv4.0", func() {
 
 	AfterEach(func() {
 		rpcClient.Close()
-		fmt.Println("<<<<<<<<<<<<<<<<<")
 	})
 
 	Context("Basic", func() {
@@ -61,12 +60,12 @@ var _ = Describe("NFSv4.0", func() {
 		It("New Client", func() {
 			rpcNfs40Header.Proc = NFSPROC4_COMPOUND
 			// TODO : random before each
-			id := "blah-blah-blah"
+			id := "sdfsdf sdfsdfs sdfsdfff"
 			cb_cl := NfsClientId{
 				Verifier:[NFS4_VERIFIER_SIZE]byte{
-					0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b},
+					0x04, 0x05, 0x06, 0x07, 0x08, 0x19, 0x1a, 0x1b},
 				Id:id}
-
+			// TODO: real callback server
 			cb := CallbackClient{
 				Program:0x40000000,
 				Location: ClientAddr{NetId:"tcp", Addr:"127.0.0.1.139.249"}}
@@ -79,7 +78,7 @@ var _ = Describe("NFSv4.0", func() {
 			res, err = rpcClient.Call(CompoundMessage{
 				Head: rpcNfs40Header,
 				Args:COMPOUND4args{
-					Tag:"",
+					Tag: "",
 					MinorVersion: 0,
 					ArgArray: ArgArrayT{Args:[]NfsArgOp4{
 						{ArgOp:OP_SETCLIENTID, SetClientId:a},
@@ -91,7 +90,83 @@ var _ = Describe("NFSv4.0", func() {
 			err = xdr.Read(res, &reply)
 			Expect(err).To(BeNil())
 			Expect(reply.Status).To(Equal(int32(NFS4_OK)))
+			Expect(len(reply.ResArray)).To(Equal(1))
+			Expect(reply.ResArray[0].ResOp).To(Equal(uint32(OP_SETCLIENTID)))
+			Expect(reply.ResArray[0].SetClientId.Status).To(Equal(int32(NFS4_OK)))
+			clientId = reply.ResArray[0].SetClientId.ResOk.ClientId
+			verifier = reply.ResArray[0].SetClientId.ResOk.Verifier
+
+			res, err = rpcClient.Call(CompoundMessage{
+				Head:rpcNfs40Header,
+				Args:COMPOUND4args{
+					Tag:"",
+					MinorVersion: 0,
+					ArgArray: ArgArrayT{Args:[]NfsArgOp4{
+						{ArgOp:OP_SETCLIENTID_CONFIRM,
+							SetClientIdConfirm: SETCLIENTID_CONFIRM4args{
+								ClientId: clientId,
+								Verifier: verifier,
+							},
+						},
+					}},
+				},
+			})
+
+			Expect(err).To(BeNil())
+			Expect(res).ToNot(BeNil())
+			err = xdr.Read(res, &reply)
+			Expect(err).To(BeNil())
+			Expect(reply.Status).To(Equal(int32(NFS4_OK)))
+			Expect(len(reply.ResArray)).To(Equal(1))
+			Expect(reply.ResArray[0].ResOp).To(Equal(uint32(OP_SETCLIENTID_CONFIRM)))
+
+			// putrootfh | getfh | getattr
+			res, err = rpcClient.Call(CompoundMessage{
+				Head:rpcNfs40Header,
+				Args:COMPOUND4args{
+					Tag:"",
+					MinorVersion: 0,
+					ArgArray: ArgArrayT{Args:[]NfsArgOp4{
+						{ArgOp:OP_PUTROOTFH},
+						{ArgOp:OP_GETFH},
+						{ArgOp:OP_GETATTR,
+							AttrRequest:[]uint32{0x0010011a, 0x00b0a23a}},
+					}},
+				},
+			})
+			Expect(err).To(BeNil())
+			Expect(res).ToNot(BeNil())
+			err = xdr.Read(res, &reply)
+			Expect(err).To(BeNil())
+			Expect(reply.Status).To(Equal(int32(NFS4_OK)))
+			Expect(len(reply.ResArray)).To(Equal(3))
+			Expect(reply.ResArray[0].ResOp).To(Equal(uint32(OP_PUTROOTFH)))
+			Expect(reply.ResArray[1].ResOp).To(Equal(uint32(OP_GETFH)))
+			Expect(reply.ResArray[2].ResOp).To(Equal(uint32(OP_GETATTR)))
+			var fh string
+			fh = reply.ResArray[1].GetFH.FH
+
+			// putfh | readdir
+			res, err = rpcClient.Call(CompoundMessage{
+				Head: rpcNfs40Header,
+				Args: COMPOUND4args{
+					Tag:"",
+					MinorVersion: 0,
+					ArgArray: ArgArrayT{Args:[]NfsArgOp4{
+						{ArgOp:OP_PUTFH, PutFH:PUTFH4args{FH:fh}},
+						{ArgOp:OP_READDIR, ReadDir:READDIR4args{
+							Cookie:0,
+							Verifier:[NFS4_VERIFIER_SIZE]byte{0, 0, 0, 0, 0, 0, 0, 0},
+							Dircount:8170,
+							Count:32680,
+							Bitmap:[]uint32{0x0018091a, 0x00b0a23a},
+						}},
+					}},
+				},
+			})
+
 		})
+
 
 	})
 })

@@ -153,6 +153,7 @@ type NfsClientId struct {
 	Id string // ?
 }
 
+// clientaddr4
 type ClientAddr struct {
 	NetId string
 	Addr string
@@ -208,6 +209,7 @@ type CompoundMessage struct {
 }
 
 /////////// server replies /////////////////////////
+
 // enum nfsstat4
 const (
 	NFS4_OK = 0
@@ -278,8 +280,31 @@ const (
 	NFS4ERR_CB_PATH_DOWN = 10048
 )
 
-type SETCLIENTID4res struct {
+type SETCLIENTID4resok struct {
+	ClientId uint64 //clientid4
+	Verifier [NFS4_VERIFIER_SIZE]byte //verifier4
+}
 
+type SETCLIENTID4res struct {
+	Status int32
+	//union {
+	ResOk SETCLIENTID4resok
+	//	ClientAddr clientaddr4 client_using;
+	//} SETCLIENTID4res_u;
+}
+
+type PUTROOTFH4res struct {
+	Status int32
+}
+
+type GETFH4res struct {
+	Status int32  `xdr:"union"`
+	FH     string `xdr:"unioncase=0"`// nfs_fh4
+}
+
+type GETATTR4res struct {
+	Status int32 `xdr:"union"`
+	Attr   FAttr `xdr:"unioncase=0"`
 }
 
 type SETCLIENTID_CONFIRM4res struct {
@@ -288,6 +313,9 @@ type SETCLIENTID_CONFIRM4res struct {
 // nfs_resop4
 type NfsResOp4 struct {
 	ResOp              uint32                  `xdr:"union"`
+	GetAttr            GETATTR4res             `xdr:"unioncase=9"`
+	GetFH              GETFH4res               `xdr:"unioncase=10"`
+	PutRootFH          PUTROOTFH4res           `xdr:"unioncase=24"`
 	SetClientId	       SETCLIENTID4res         `xdr:"unioncase=35"`
 	SetClientIdConfirm SETCLIENTID_CONFIRM4res `xdr:"unioncase=36"`
 }

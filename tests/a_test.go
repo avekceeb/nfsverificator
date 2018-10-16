@@ -5,34 +5,54 @@ import (
 	. "github.com/onsi/gomega"
 	. "github.com/avekceeb/nfsverificator/nfs40"
 	"github.com/avekceeb/nfsverificator/rpc"
-	"io"
 	"github.com/vmware/go-nfs-client/nfs/xdr"
+	"fmt"
 )
 
 var (
 	rpcClient      *rpc.Client
-	auth           *rpc.AuthUnix
-	rpcNfs40Header rpc.Header
-	res            io.ReadSeeker
-	err            error
-	reply          COMPOUND4res
+	auth           rpc.Auth
 	clientId       uint64
 	verifier       [NFS4_VERIFIER_SIZE]byte
 )
 
+func Compoundv40(args ...NfsArgOp4) ([]NfsResOp4) {
+	res, err := rpcClient.Call(CompoundMessage{
+		Head: rpc.Header{
+			Rpcvers: 2,
+			Prog:    NFS4_PROGRAM,
+			Vers:    NFS_V4,
+			Proc:    NFSPROC4_COMPOUND,
+			Cred:    auth,
+			Verf:    rpc.AuthNull,
+		},
+		Args:COMPOUND4args{
+			Tag: "",
+			MinorVersion: 0,
+			ArgArray: ArgArrayT{Args:args},
+		},
+	})
+	Expect(err).To(BeNil())
+	Expect(res).ToNot(BeNil())
+	var reply COMPOUND4res
+	err = xdr.Read(res, &reply)
+	fmt.Printf(" REPLY: \n%v\n", reply)
+	Expect(err).To(BeNil())
+	Expect(reply.Status).To(Equal(int32(NFS4_OK)))
+	Expect(len(reply.ResArray)).To(Equal(len(args)))
+	// TODO: 0 != 26
+	for k := range args {
+		Expect(reply.ResArray[k].ResOp).To(Equal(args[k].ArgOp))
+	}
+	return reply.ResArray
+}
+
 var _ = Describe("NFSv4.0", func() {
 
-	auth = rpc.NewAuthUnix(Config.ClientHost, 0, 0)
-	rpcNfs40Header = rpc.Header{
-		Rpcvers: 2,
-		Prog:    NFS4_PROGRAM,
-		Vers:    NFS_V4,
-		Proc:    NFSPROC4_NULL,
-		Cred:    auth.Auth(),
-		Verf:    rpc.AuthNull,
-	}
+	auth = rpc.NewAuthUnix(Config.ClientHost, 0, 0).Auth()
 
 	BeforeEach(func() {
+		var err error
 		rpcClient, err = rpc.DialService(Config.ServerHost, Config.ServerPort)
 		//defer client.Close()
 		if err != nil {
@@ -48,8 +68,15 @@ var _ = Describe("NFSv4.0", func() {
 	Context("Basic", func() {
 
 		It("NULL Call", func() {
-			rpcNfs40Header.Proc = NFSPROC4_NULL
-			res, err = rpcClient.Call(rpcNfs40Header)
+			res, err := rpcClient.Call(rpc.Header{
+				Rpcvers: 2,
+				Prog:    NFS4_PROGRAM,
+				Vers:    NFS_V4,
+				Proc:    NFSPROC4_NULL,
+				Cred:    auth,
+				Verf:    rpc.AuthNull,
+			})
+
 			Expect(err).To(BeNil())
 			Expect(res).ToNot(BeNil())
 			var b []byte
@@ -58,9 +85,7 @@ var _ = Describe("NFSv4.0", func() {
 		})
 
 		It("New Client", func() {
-			rpcNfs40Header.Proc = NFSPROC4_COMPOUND
-			// TODO : random before each
-			id := "sdfsdf sdfsdfs sdfsdfff"
+			id := RandString(8)
 			cb_cl := NfsClientId{
 				Verifier:[NFS4_VERIFIER_SIZE]byte{
 					0x04, 0x05, 0x06, 0x07, 0x08, 0x19, 0x1a, 0x1b},
@@ -75,98 +100,54 @@ var _ = Describe("NFSv4.0", func() {
 				Callback:cb,
 				CallbackIdent:1}
 
-			res, err = rpcClient.Call(CompoundMessage{
-				Head: rpcNfs40Header,
-				Args:COMPOUND4args{
-					Tag: "",
-					MinorVersion: 0,
-					ArgArray: ArgArrayT{Args:[]NfsArgOp4{
-						{ArgOp:OP_SETCLIENTID, SetClientId:a},
-					}},
-				},
-			})
-			Expect(err).To(BeNil())
-			Expect(res).ToNot(BeNil())
-			err = xdr.Read(res, &reply)
-			Expect(err).To(BeNil())
-			Expect(reply.Status).To(Equal(int32(NFS4_OK)))
-			Expect(len(reply.ResArray)).To(Equal(1))
-			Expect(reply.ResArray[0].ResOp).To(Equal(uint32(OP_SETCLIENTID)))
-			Expect(reply.ResArray[0].SetClientId.Status).To(Equal(int32(NFS4_OK)))
-			clientId = reply.ResArray[0].SetClientId.ResOk.ClientId
-			verifier = reply.ResArray[0].SetClientId.ResOk.Verifier
+			ret := Compoundv40(NfsArgOp4{ArgOp:OP_SETCLIENTID, SetClientId:a})
 
-			res, err = rpcClient.Call(CompoundMessage{
-				Head:rpcNfs40Header,
-				Args:COMPOUND4args{
-					Tag:"",
-					MinorVersion: 0,
-					ArgArray: ArgArrayT{Args:[]NfsArgOp4{
-						{ArgOp:OP_SETCLIENTID_CONFIRM,
-							SetClientIdConfirm: SETCLIENTID_CONFIRM4args{
-								ClientId: clientId,
-								Verifier: verifier,
-							},
-						},
-					}},
-				},
-			})
+			Expect(ret[0].SetClientId.Status).To(Equal(int32(NFS4_OK)))
+			clientId = ret[0].SetClientId.ResOk.ClientId
+			verifier = ret[0].SetClientId.ResOk.Verifier
 
-			Expect(err).To(BeNil())
-			Expect(res).ToNot(BeNil())
-			err = xdr.Read(res, &reply)
-			Expect(err).To(BeNil())
-			Expect(reply.Status).To(Equal(int32(NFS4_OK)))
-			Expect(len(reply.ResArray)).To(Equal(1))
-			Expect(reply.ResArray[0].ResOp).To(Equal(uint32(OP_SETCLIENTID_CONFIRM)))
+			ret = Compoundv40(NfsArgOp4{
+					ArgOp:OP_SETCLIENTID_CONFIRM,
+					SetClientIdConfirm: SETCLIENTID_CONFIRM4args{
+						ClientId: clientId,
+						Verifier: verifier},
+			})
+			//Expect(ret[0].SetClientIdConfirm. TODO: Status).To(Equal())
 
 			// putrootfh | getfh | getattr
-			res, err = rpcClient.Call(CompoundMessage{
-				Head:rpcNfs40Header,
-				Args:COMPOUND4args{
-					Tag:"",
-					MinorVersion: 0,
-					ArgArray: ArgArrayT{Args:[]NfsArgOp4{
-						{ArgOp:OP_PUTROOTFH},
-						{ArgOp:OP_GETFH},
-						{ArgOp:OP_GETATTR,
-							AttrRequest:[]uint32{0x0010011a, 0x00b0a23a}},
-					}},
-				},
-			})
-			Expect(err).To(BeNil())
-			Expect(res).ToNot(BeNil())
-			err = xdr.Read(res, &reply)
-			Expect(err).To(BeNil())
-			Expect(reply.Status).To(Equal(int32(NFS4_OK)))
-			Expect(len(reply.ResArray)).To(Equal(3))
-			Expect(reply.ResArray[0].ResOp).To(Equal(uint32(OP_PUTROOTFH)))
-			Expect(reply.ResArray[1].ResOp).To(Equal(uint32(OP_GETFH)))
-			Expect(reply.ResArray[2].ResOp).To(Equal(uint32(OP_GETATTR)))
+			ret = Compoundv40(GetPutRootFH(),
+					GetGetFH(),
+					GetGetAttr(FATTR4_MODE, FATTR4_SIZE))
+
+			Expect(ret[0].GetFH.Status).To(Equal(int32(NFS4_OK)))
 			var fh string
-			fh = reply.ResArray[1].GetFH.FH
+			fh = ret[1].GetFH.FH
 
 			// putfh | readdir
-			res, err = rpcClient.Call(CompoundMessage{
-				Head: rpcNfs40Header,
-				Args: COMPOUND4args{
-					Tag:"",
-					MinorVersion: 0,
-					ArgArray: ArgArrayT{Args:[]NfsArgOp4{
-						{ArgOp:OP_PUTFH, PutFH:PUTFH4args{FH:fh}},
-						{ArgOp:OP_READDIR, ReadDir:READDIR4args{
-							Cookie:0,
-							Verifier:[NFS4_VERIFIER_SIZE]byte{0, 0, 0, 0, 0, 0, 0, 0},
-							Dircount:8170,
-							Count:32680,
-							Bitmap:[]uint32{0x0018091a, 0x00b0a23a},
-						}},
-					}},
+			ret = Compoundv40(GetPutFH(fh),	GetReadDir())
+			// TODO
+			//for _, e := range ret[1].ReadDir.Result.DirList.Entries {
+			//	fmt.Printf(" entry: %s\n", e.Name)
+			//}
+
+			// Create File:
+			ret = Compoundv40([]NfsArgOp4{
+				GetPutFH(fh),
+				{ArgOp:OP_OPEN, Open: OPEN4args{SeqId:0,
+					ShareAccess: OPEN4_SHARE_ACCESS_WRITE,
+					ShareDeny: OPEN4_SHARE_DENY_NONE,
+					OpenOwner:OpenOwner4{ClientId:clientId, Owner:id},
+					OpenHow: OpenFlag4{OpenType:OPEN4_CREATE,
+						CreateHow: CreateHowT{CreateMode:UNCHECKED4,
+							Attr:FAttr4{
+								Bitmap: GetBitmap(FATTR4_MODE),
+								AttrList:"\x00\x00\x01\xa4"},
+						},
+					},
+					Claim: OpenClaim4{Claim:CLAIM_NULL, File: RandString(8)}},
 				},
-			})
+			}...)
 
 		})
-
-
 	})
 })

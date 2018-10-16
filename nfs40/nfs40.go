@@ -22,6 +22,75 @@ const (
 )
 
 const (
+	OPEN4_SHARE_ACCESS_READ = 0x00000001
+	OPEN4_SHARE_ACCESS_WRITE = 0x00000002
+	OPEN4_SHARE_ACCESS_BOTH = 0x00000003
+	OPEN4_SHARE_DENY_NONE = 0x00000000
+	OPEN4_SHARE_DENY_READ = 0x00000001
+	OPEN4_SHARE_DENY_WRITE = 0x00000002
+	OPEN4_SHARE_DENY_BOTH = 0x00000003
+)
+
+const (
+	FATTR4_SUPPORTED_ATTRS = 0
+	FATTR4_TYPE = 1
+	FATTR4_FH_EXPIRE_TYPE = 2
+	FATTR4_CHANGE = 3
+	FATTR4_SIZE = 4
+	FATTR4_LINK_SUPPORT = 5
+	FATTR4_SYMLINK_SUPPORT = 6
+	FATTR4_NAMED_ATTR = 7
+	FATTR4_FSID = 8
+	FATTR4_UNIQUE_HANDLES = 9
+	FATTR4_LEASE_TIME = 10
+	FATTR4_RDATTR_ERROR = 11
+	FATTR4_FILEHANDLE = 19
+	FATTR4_ACL = 12
+	FATTR4_ACLSUPPORT = 13
+	FATTR4_ARCHIVE = 14
+	FATTR4_CANSETTIME = 15
+	FATTR4_CASE_INSENSITIVE = 16
+	FATTR4_CASE_PRESERVING = 17
+	FATTR4_CHOWN_RESTRICTED = 18
+	FATTR4_FILEID = 20
+	FATTR4_FILES_AVAIL = 21
+	FATTR4_FILES_FREE = 22
+	FATTR4_FILES_TOTAL = 23
+	FATTR4_FS_LOCATIONS = 24
+	FATTR4_HIDDEN = 25
+	FATTR4_HOMOGENEOUS = 26
+	FATTR4_MAXFILESIZE = 27
+	FATTR4_MAXLINK = 28
+	FATTR4_MAXNAME = 29
+	FATTR4_MAXREAD = 30
+	FATTR4_MAXWRITE = 31
+	FATTR4_MIMETYPE = 32
+	FATTR4_MODE = 33
+	FATTR4_NO_TRUNC = 34
+	FATTR4_NUMLINKS = 35
+	FATTR4_OWNER = 36
+	FATTR4_OWNER_GROUP = 37
+	FATTR4_QUOTA_AVAIL_HARD = 38
+	FATTR4_QUOTA_AVAIL_SOFT = 39
+	FATTR4_QUOTA_USED = 40
+	FATTR4_RAWDEV = 41
+	FATTR4_SPACE_AVAIL = 42
+	FATTR4_SPACE_FREE = 43
+	FATTR4_SPACE_TOTAL = 44
+	FATTR4_SPACE_USED = 45
+	FATTR4_SYSTEM = 46
+	FATTR4_TIME_ACCESS = 47
+	FATTR4_TIME_ACCESS_SET = 48
+	FATTR4_TIME_BACKUP = 49
+	FATTR4_TIME_CREATE = 50
+	FATTR4_TIME_DELTA = 51
+	FATTR4_TIME_METADATA = 52
+	FATTR4_TIME_MODIFY = 53
+	FATTR4_TIME_MODIFY_SET = 54
+	FATTR4_MOUNTED_ON_FILEID = 55
+)
+
+const (
 	OP_ACCESS = 3
 	OP_CLOSE = 4
 	OP_COMMIT = 5
@@ -89,20 +158,34 @@ const (
 )
 
 // fattr4
-type FAttr struct {
-	Bitmap []uint32
-	AttrList string
+type FAttr4 struct {
+	Bitmap []uint32 // bitmap4
+	AttrList string // attrlist4
+}
+/*
+   The bitmap is a counted array of 32 bit integers used to contain bit
+   values.  The position of the integer in the array that contains bit n
+   can be computed from the expression (n / 32) and its bit within that
+   integer is (n mod 32).
+
+                           0            1
+         +-----------+-----------+-----------+--
+         |  count    | 31  ..  0 | 63  .. 32 |
+         +-----------+-----------+-----------+--
+
+*/
+
+type CreateHowT struct {
+		CreateMode  int32 `xdr:"union"`
+		Attr        FAttr4 `xdr:"unioncase=0"` // both are the same
+		AttrGuarded FAttr4 `xdr:"unioncase=1"`
+		Verifier    [NFS4_VERIFIER_SIZE]byte `xdr:"unioncase=2"`
 }
 
 // openflag4
 type OpenFlag4 struct {
-	OpenType int32   `xdr:"union"`
-	CreateHow struct {
-		CreateMode int32 `xdr:"union"`
-		Attr FAttr `xdr:"unioncalse=0"` // both are the same
-		AttrGuarded FAttr `xdr:"unioncalse=1"`
-		Verifier [NFS4_VERIFIER_SIZE]byte `xdr:"unioncalse=2"`
-	} `xdr:""unioncase=1`
+	OpenType  int32      `xdr:"union"`
+	CreateHow CreateHowT `xdr:"unioncase=1"`
 }
 // open_delegation_type4
 const (
@@ -134,8 +217,9 @@ type OpenClaim4 struct  {
 	FileDelegatePrev string                `xdr:"unioncase=3"`
 }
 
+// open_owner4
 type OpenOwner4 struct {
-	ClientId NfsClientId
+	ClientId uint64 // clientid4
 	Owner string
 }
 
@@ -187,6 +271,7 @@ type READDIR4args struct {
 type NfsArgOp4 struct {
 	ArgOp              uint32                   `xdr:"union"`
 	AttrRequest        []uint32                 `xdr:"unioncase=9"`
+	Open               OPEN4args                `xdr:"unioncase=18"`
 	PutFH              PUTFH4args               `xdr:"unioncase=22"`
 	ReadDir            READDIR4args             `xdr:"unioncase=26"`
 	SetClientId        SETCLIENTID4args         `xdr:"unioncase=35"`
@@ -297,6 +382,10 @@ type PUTROOTFH4res struct {
 	Status int32
 }
 
+type PUTFH4res struct {
+	Status int32
+}
+
 type GETFH4res struct {
 	Status int32  `xdr:"union"`
 	FH     string `xdr:"unioncase=0"`// nfs_fh4
@@ -304,10 +393,39 @@ type GETFH4res struct {
 
 type GETATTR4res struct {
 	Status int32 `xdr:"union"`
-	Attr   FAttr `xdr:"unioncase=0"`
+	Attr   FAttr4 `xdr:"unioncase=0"`
 }
 
 type SETCLIENTID_CONFIRM4res struct {
+	Status int32
+}
+
+// entry4
+type DirListEntry struct  {
+	Cookie   uint64 // nfs_cookie4
+	Name     string // component4
+	Attrs    FAttr4
+	// this is the trick:
+	// in RFC here is the
+	// entry4 *nextentry;
+	// but I want it to be prepended by length (1 or 0)
+	NexEntry []DirListEntry
+}
+
+// dirlist4
+type DirList4 struct {
+	Entries []DirListEntry
+	Eof bool
+}
+
+type READDIR4resok struct {
+	Cookie [NFS4_VERIFIER_SIZE]byte
+	DirList DirList4
+}
+
+type READDIR4res struct {
+	Status int32 `xdr:"union"`
+	Result READDIR4resok `xdr:"unioncase=0"`
 }
 
 // nfs_resop4
@@ -315,7 +433,9 @@ type NfsResOp4 struct {
 	ResOp              uint32                  `xdr:"union"`
 	GetAttr            GETATTR4res             `xdr:"unioncase=9"`
 	GetFH              GETFH4res               `xdr:"unioncase=10"`
+	PutFH              PUTFH4res               `xdr:"unioncase=22"`
 	PutRootFH          PUTROOTFH4res           `xdr:"unioncase=24"`
+	ReadDir            READDIR4res             `xdr:"unioncase=26"`
 	SetClientId	       SETCLIENTID4res         `xdr:"unioncase=35"`
 	SetClientIdConfirm SETCLIENTID_CONFIRM4res `xdr:"unioncase=36"`
 }

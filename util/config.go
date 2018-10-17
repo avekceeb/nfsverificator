@@ -7,10 +7,10 @@ import (
 )
 
 type TestConfig struct {
-	ServerHost string `json:"server-host"`
-	ServerPort int `json:"server-port"`
-	ClientHost string `json:"client-host"`
-	ClientId string `json:"client-id"`
+	ServerHost string    `json:"server-host"`
+	ServerPort int       `json:"server-port"`
+	Exports    []string  `json:"exports"`
+	ExportsRO  []string  `json:"exports-ro"`
 }
 
 func ReadConfig(configPath string) (config TestConfig) {

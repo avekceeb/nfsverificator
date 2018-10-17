@@ -90,6 +90,19 @@ const (
 	FATTR4_MOUNTED_ON_FILEID = 55
 )
 
+// nfs_ftype4
+const (
+	NF4REG = 1
+	NF4DIR = 2
+	NF4BLK = 3
+	NF4CHR = 4
+	NF4LNK = 5
+	NF4SOCK = 6
+	NF4FIFO = 7
+	NF4ATTRDIR = 8
+	NF4NAMEDATTR = 9
+)
+
 const (
 	OP_ACCESS = 3
 	OP_CLOSE = 4
@@ -131,8 +144,15 @@ const (
 	OP_ILLEGAL = 10044
 )
 
+//////////////////////////////////////////////
+
+// TODO:
+type Verifier4 [NFS4_VERIFIER_SIZE]byte
+// nfs_fh4
+type FH4 []byte
+
 type PUTFH4args struct {
-	FH string
+	FH FH4
 }
 
 // stateid4
@@ -147,9 +167,6 @@ const (
 	OPEN4_CREATE = 1
 )
 
-// TODO
-//OpenType4 := map[int32]bool{OPEN4_NOCREATE:true, OPEN4_CREATE:true}
-
 // createmode4
 const (
 	UNCHECKED4 = 0
@@ -160,7 +177,7 @@ const (
 // fattr4
 type FAttr4 struct {
 	Bitmap []uint32 // bitmap4
-	AttrList string // attrlist4
+	AttrList []byte // attrlist4
 }
 /*
    The bitmap is a counted array of 32 bit integers used to contain bit
@@ -176,10 +193,10 @@ type FAttr4 struct {
 */
 
 type CreateHowT struct {
-		CreateMode  int32 `xdr:"union"`
-		Attr        FAttr4 `xdr:"unioncase=0"` // both are the same
-		AttrGuarded FAttr4 `xdr:"unioncase=1"`
-		Verifier    [NFS4_VERIFIER_SIZE]byte `xdr:"unioncase=2"`
+		CreateMode  int32     `xdr:"union"`
+		Attr        FAttr4    `xdr:"unioncase=0"` // both are the same
+		AttrGuarded FAttr4    `xdr:"unioncase=1"`
+		Verifier    Verifier4 `xdr:"unioncase=2"`
 }
 
 // openflag4
@@ -187,6 +204,7 @@ type OpenFlag4 struct {
 	OpenType  int32      `xdr:"union"`
 	CreateHow CreateHowT `xdr:"unioncase=1"`
 }
+
 // open_delegation_type4
 const (
 	OPEN_DELEGATE_NONE = 0
@@ -233,7 +251,7 @@ type OPEN4args struct {
 }
 
 type NfsClientId struct {
-	Verifier [NFS4_VERIFIER_SIZE]byte
+	Verifier Verifier4
 	Id string // ?
 }
 
@@ -256,24 +274,51 @@ type SETCLIENTID4args struct {
 
 type SETCLIENTID_CONFIRM4args struct {
 	ClientId uint64
-	Verifier [NFS4_VERIFIER_SIZE]byte
+	Verifier Verifier4
 }
 
 type READDIR4args struct {
 	Cookie uint64
-	Verifier [NFS4_VERIFIER_SIZE]byte
+	Verifier Verifier4
 	Dircount uint32
 	Count uint32
 	Bitmap []uint32
 }
 
+type SETATTR4args struct {
+	StateId StateId4  //stateid4 stateid;
+	Attr FAttr4       //fattr4 obj_attributes;
+}
+
+type LOOKUP4args struct {
+	Name string //component4 objname;
+}
+
+// createtype4
+type CreateType4 struct {
+	Type     int32	   `xdr:"union"`
+	// TODO: check RFC
+	SpecBlk  [2]uint32 `xdr:"unioncase=3"`
+	SpecChr  [2]uint32 `xdr:"unioncase=4"`
+	Link     string    `xdr:"unioncase=5"`
+}
+
+type CREATE4args struct {
+	CreateType CreateType4
+	Name       string
+	Attr       FAttr4
+}
+
 // nfs_argop4
 type NfsArgOp4 struct {
 	ArgOp              uint32                   `xdr:"union"`
+	Create             CREATE4args              `xdr:"unioncase=6"`
 	AttrRequest        []uint32                 `xdr:"unioncase=9"`
+	Lookup             LOOKUP4args              `xdr:"unioncase=15"`
 	Open               OPEN4args                `xdr:"unioncase=18"`
 	PutFH              PUTFH4args               `xdr:"unioncase=22"`
 	ReadDir            READDIR4args             `xdr:"unioncase=26"`
+	SetAttr            SETATTR4args             `xdr:"unioncase=34"`
 	SetClientId        SETCLIENTID4args         `xdr:"unioncase=35"`
 	SetClientIdConfirm SETCLIENTID_CONFIRM4args `xdr:"unioncase=36"`
 }
@@ -388,7 +433,7 @@ type PUTFH4res struct {
 
 type GETFH4res struct {
 	Status int32  `xdr:"union"`
-	FH     string `xdr:"unioncase=0"`// nfs_fh4
+	FH     FH4    `xdr:"unioncase=0"`// nfs_fh4
 }
 
 type GETATTR4res struct {
@@ -419,7 +464,7 @@ type DirList4 struct {
 }
 
 type READDIR4resok struct {
-	Cookie [NFS4_VERIFIER_SIZE]byte
+	Cookie Verifier4
 	DirList DirList4
 }
 
@@ -428,11 +473,70 @@ type READDIR4res struct {
 	Result READDIR4resok `xdr:"unioncase=0"`
 }
 
+// change_info4
+type ChangeInfo4 struct {
+	Atomic bool   //bool_t atomic;
+	Before uint64 //changeid4 before;
+	After  uint64 //changeid4 after;
+}
+
+// open_read_delegation4
+type OpenReadDelegation4 struct {
+	//stateid4 stateid;
+	//bool_t recall;
+	//nfsace4 permissions;
+}
+
+// open_write_delegation4
+type OpenWriteDelegation4 struct {
+	//stateid4 stateid;
+	//bool_t recall;
+	//nfs_space_limit4 space_limit;
+	//nfsace4 permissions;
+}
+
+// open_delegation4
+type OpenDelegation4 struct {
+	Type int32 `xdr:"union"`
+	Read OpenReadDelegation4 `xdr:"unioncase=1"`
+	Write OpenWriteDelegation4 `xdr:"unioncase=2"`
+}
+
+type OPEN4resok struct {
+	StateId StateId4 //stateid4 stateid;
+	ChangeInfo ChangeInfo4 //change_info4 cinfo;
+	RFlags uint32 //uint32_t rflags;
+	Bitmap []uint32 //bitmap4 attrset;
+	Delegation OpenDelegation4 //open_delegation4 delegation;
+}
+
+type OPEN4res struct {
+	Status int32  `xdr:"union"`
+	Result OPEN4resok `xdr:"unioncase=0"`
+}
+
+type LOOKUP4res struct {
+	Status int32
+}
+
+type CREATE4resok struct {
+	ChangeInfo ChangeInfo4
+	Bitmap     []uint32
+}
+
+type CREATE4res struct {
+	Status int32  `xdr:"union"`
+	Result CREATE4resok `xdr:"unioncase=0"`
+}
+
 // nfs_resop4
 type NfsResOp4 struct {
 	ResOp              uint32                  `xdr:"union"`
+	Create             CREATE4res              `xdr:"unioncase=6"`
 	GetAttr            GETATTR4res             `xdr:"unioncase=9"`
 	GetFH              GETFH4res               `xdr:"unioncase=10"`
+	Lookup             LOOKUP4res              `xdr:"unioncase=15"`
+	Open               OPEN4res                `xdr:"unioncase=18"`
 	PutFH              PUTFH4res               `xdr:"unioncase=22"`
 	PutRootFH          PUTROOTFH4res           `xdr:"unioncase=24"`
 	ReadDir            READDIR4res             `xdr:"unioncase=26"`

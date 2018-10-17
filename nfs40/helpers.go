@@ -1,6 +1,6 @@
 package nfs40
 
-func GetPutFH(fh string) (NfsArgOp4) {
+func GetPutFH(fh FH4) (NfsArgOp4) {
 	return NfsArgOp4{ArgOp:OP_PUTFH, PutFH:PUTFH4args{FH:fh}}
 }
 
@@ -23,9 +23,19 @@ func GetGetFH() (NfsArgOp4) {
 	return NfsArgOp4{ArgOp:OP_GETFH}
 }
 
+func GetLookup(file string) (NfsArgOp4) {
+	return NfsArgOp4{ArgOp:OP_LOOKUP, Lookup: LOOKUP4args{Name: file}}
+}
+
 func GetGetAttr(bits ...int) (NfsArgOp4) {
 	return NfsArgOp4{ArgOp:OP_GETATTR,
 					AttrRequest:GetBitmap(bits...)}
+}
+
+func GetSetAttr(s_id StateId4, bm []uint32, attr []byte) (NfsArgOp4) {
+	return NfsArgOp4{ArgOp:OP_SETATTR,
+					SetAttr:SETATTR4args{StateId:s_id,
+						Attr:FAttr4{Bitmap: bm, AttrList: attr}}}
 }
 
 func GetBitmap(bits ...int) ([]uint32) {
@@ -35,4 +45,28 @@ func GetBitmap(bits ...int) ([]uint32) {
 		b[v/32] |= (1 << uint32(v%32))
 	}
 	return b
+}
+
+func CreateDir(name string) (NfsArgOp4) {
+	return NfsArgOp4{ArgOp:OP_CREATE,
+			Create:CREATE4args{CreateType:CreateType4{Type:NF4DIR},
+				Name:name,
+				Attr:FAttr4{Bitmap:GetBitmap(FATTR4_MODE),
+					AttrList: GetPermAttrList(0644)},
+			}}
+}
+
+func GetPermAttrList(perm uint) (l []byte) {
+	l = make([]byte, 4)
+	l[3] = byte(perm & 0xff)
+	l[2] = byte((perm & 0xff00) >> 8)
+	l[1] = byte((perm & 0xff0000) >> 16)
+	l[0] = byte((perm & 0xff000000) >> 24)
+	return l
+}
+
+func GetSetClientConfirm(clientId uint64, verifier Verifier4) (NfsArgOp4) {
+	return NfsArgOp4{ArgOp:OP_SETCLIENTID_CONFIRM,
+		SetClientIdConfirm: SETCLIENTID_CONFIRM4args{ClientId: clientId,
+			Verifier: verifier}}
 }

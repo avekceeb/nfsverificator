@@ -53,6 +53,10 @@ type NFSv40Client struct {
 	// TODO: callback server ; thread to send RENEW ?
 }
 
+func (cli *NFSv40Client) Close() {
+	cli.RpcClient.Close()
+}
+
 func (cli *NFSv40Client) Compound(args ...nfs40.NfsArgOp4) ([]nfs40.NfsResOp4) {
 	res, err := cli.RpcClient.Call(nfs40.CompoundMessage{
 		Head: rpc.Header{

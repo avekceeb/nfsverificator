@@ -70,3 +70,21 @@ func GetSetClientConfirm(clientId uint64, verifier Verifier4) (NfsArgOp4) {
 		SetClientIdConfirm: SETCLIENTID_CONFIRM4args{ClientId: clientId,
 			Verifier: verifier}}
 }
+
+func GetOpen(clientId uint64, owner string, name string) (NfsArgOp4) {
+	return NfsArgOp4{ArgOp:OP_OPEN,
+		Open: OPEN4args{SeqId:0,
+			ShareAccess: OPEN4_SHARE_ACCESS_WRITE,
+			ShareDeny: OPEN4_SHARE_DENY_NONE,
+			OpenOwner: OpenOwner4{ClientId: clientId,
+				Owner: owner},
+			OpenHow: OpenFlag4{OpenType:OPEN4_CREATE,
+				CreateHow: CreateHowT{CreateMode:UNCHECKED4,
+					Attr:FAttr4{
+						Bitmap: GetBitmap(FATTR4_MODE),
+						AttrList:GetPermAttrList(0644)},
+				},
+			},
+			Claim: OpenClaim4{Claim:CLAIM_NULL, File: name}},
+	}
+}

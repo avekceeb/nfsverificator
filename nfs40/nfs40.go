@@ -103,6 +103,13 @@ const (
 	NF4NAMEDATTR = 9
 )
 
+// stable_how4
+const (
+	UNSTABLE4 = 0
+	DATA_SYNC4 = 1
+	FILE_SYNC4 = 2
+)
+
 const (
 	OP_ACCESS = 3
 	OP_CLOSE = 4
@@ -250,6 +257,11 @@ type OPEN4args struct {
 	Claim OpenClaim4
 }
 
+type OPEN_CONFIRM4args struct {
+	State StateId4
+	SeqId uint32 // ???????????? in *.h
+}
+
 type NfsClientId struct {
 	Verifier Verifier4
 	Id string // ?
@@ -309,18 +321,33 @@ type CREATE4args struct {
 	Attr       FAttr4
 }
 
+type WRITE4args struct {
+	State  StateId4
+	Offset uint64 //offset4
+	Stable int32  //stable_how4
+	Data   []byte
+}
+
+type CLOSE4args struct {
+	SeqId   uint32
+	StateId StateId4
+}
+
 // nfs_argop4
 type NfsArgOp4 struct {
 	ArgOp              uint32                   `xdr:"union"`
+	Close              CLOSE4args               `xdr:"unioncase=4"`
 	Create             CREATE4args              `xdr:"unioncase=6"`
 	AttrRequest        []uint32                 `xdr:"unioncase=9"`
 	Lookup             LOOKUP4args              `xdr:"unioncase=15"`
 	Open               OPEN4args                `xdr:"unioncase=18"`
+	OpenConfirm        OPEN_CONFIRM4args        `xdr:"unioncase=20"`
 	PutFH              PUTFH4args               `xdr:"unioncase=22"`
 	ReadDir            READDIR4args             `xdr:"unioncase=26"`
 	SetAttr            SETATTR4args             `xdr:"unioncase=34"`
 	SetClientId        SETCLIENTID4args         `xdr:"unioncase=35"`
 	SetClientIdConfirm SETCLIENTID_CONFIRM4args `xdr:"unioncase=36"`
+	Write              WRITE4args               `xdr:"unioncase=38"`
 }
 
 type ArgArrayT struct {
@@ -515,6 +542,15 @@ type OPEN4res struct {
 	Result OPEN4resok `xdr:"unioncase=0"`
 }
 
+type OPEN_CONFIRM4resok struct {
+	State StateId4
+}
+
+type OPEN_CONFIRM4res struct {
+	Status int32  `xdr:"union"`
+	Result OPEN_CONFIRM4resok `xdr:"unioncase=0"`
+}
+
 type LOOKUP4res struct {
 	Status int32
 }
@@ -525,23 +561,42 @@ type CREATE4resok struct {
 }
 
 type CREATE4res struct {
-	Status int32  `xdr:"union"`
+	Status int32        `xdr:"union"`
 	Result CREATE4resok `xdr:"unioncase=0"`
+}
+
+type WRITE4resok struct {
+	Count     uint32
+	Committed int32     // stable_how4
+	Verifier  Verifier4
+}
+
+type WRITE4res struct {
+	Status uint32       `xdr:"union"`
+	Result WRITE4resok  `xdr:"unioncase=0"`
+}
+
+type CLOSE4res struct {
+	Status int32 `xdr:"union"`
+	StateId StateId4 `xdr:"unioncase=0"`
 }
 
 // nfs_resop4
 type NfsResOp4 struct {
 	ResOp              uint32                  `xdr:"union"`
+	Close              CLOSE4res               `xdr:"unioncase=4"`
 	Create             CREATE4res              `xdr:"unioncase=6"`
 	GetAttr            GETATTR4res             `xdr:"unioncase=9"`
 	GetFH              GETFH4res               `xdr:"unioncase=10"`
 	Lookup             LOOKUP4res              `xdr:"unioncase=15"`
 	Open               OPEN4res                `xdr:"unioncase=18"`
+	OpenConfirm        OPEN_CONFIRM4res        `xdr:"unioncase=20"`
 	PutFH              PUTFH4res               `xdr:"unioncase=22"`
 	PutRootFH          PUTROOTFH4res           `xdr:"unioncase=24"`
 	ReadDir            READDIR4res             `xdr:"unioncase=26"`
 	SetClientId	       SETCLIENTID4res         `xdr:"unioncase=35"`
 	SetClientIdConfirm SETCLIENTID_CONFIRM4res `xdr:"unioncase=36"`
+	Write              WRITE4res               `xdr:"unioncase=38"`
 }
 
 type COMPOUND4res struct {

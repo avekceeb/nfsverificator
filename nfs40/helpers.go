@@ -71,9 +71,9 @@ func GetSetClientConfirm(clientId uint64, verifier Verifier4) (NfsArgOp4) {
 			Verifier: verifier}}
 }
 
-func GetOpen(clientId uint64, owner string, name string) (NfsArgOp4) {
+func GetOpen(seq uint32, clientId uint64, owner string, name string) (NfsArgOp4) {
 	return NfsArgOp4{ArgOp:OP_OPEN,
-		Open: OPEN4args{SeqId:0,
+		Open: OPEN4args{SeqId:seq,
 			ShareAccess: OPEN4_SHARE_ACCESS_WRITE,
 			ShareDeny: OPEN4_SHARE_DENY_NONE,
 			OpenOwner: OpenOwner4{ClientId: clientId,
@@ -82,9 +82,23 @@ func GetOpen(clientId uint64, owner string, name string) (NfsArgOp4) {
 				CreateHow: CreateHowT{CreateMode:UNCHECKED4,
 					Attr:FAttr4{
 						Bitmap: GetBitmap(FATTR4_MODE),
-						AttrList:GetPermAttrList(0644)},
+						AttrList: GetPermAttrList(0644)},
 				},
 			},
 			Claim: OpenClaim4{Claim:CLAIM_NULL, File: name}},
 	}
+}
+
+func GetOpenConfirm(stateId StateId4, seq uint32) (NfsArgOp4) {
+	return NfsArgOp4{ArgOp:OP_OPEN_CONFIRM,
+			OpenConfirm:OPEN_CONFIRM4args{State:stateId, SeqId:seq}}
+}
+
+func GetWrite(stateId StateId4, data *[]byte, offset uint64) (NfsArgOp4) {
+	return NfsArgOp4{ArgOp: OP_WRITE,
+		Write: WRITE4args{State:stateId, Offset: offset, Stable: FILE_SYNC4, Data: *data}}
+}
+
+func GetClose(seq uint32, stateId StateId4) (NfsArgOp4) {
+	return NfsArgOp4{ArgOp: OP_CLOSE, Close:CLOSE4args{SeqId:seq, StateId: stateId}}
 }

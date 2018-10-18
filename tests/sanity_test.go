@@ -13,16 +13,19 @@ import (
 	"github.com/avekceeb/nfsverificator/rpc"
 	"github.com/avekceeb/nfsverificator/xdr"
 	"fmt"
+	"flag"
 )
 
 var Config TestConfig
 
 func init() {
+	var configFile string
+	flag.StringVar(&configFile, "config",
+		filepath.Join(os.Getenv("GOPATH"),
+        "src/github.com/avekceeb/nfsverificator/config.json"), "Config File")
+	flag.Parse()
+	Config = ReadConfig(configFile)
     rand.Seed(time.Now().UnixNano())
-	// TODO: option to provide non-default file
-    configPath := filepath.Join(os.Getenv("GOPATH"),
-        "src/github.com/avekceeb/nfsverificator/config.json")
-	Config = ReadConfig(configPath)
 }
 
 const letters = "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz"
@@ -50,6 +53,7 @@ type NFSv40Client struct {
 	ClientId       uint64
 	Verifier       nfs40.Verifier4
 	Id             string
+	Seq            uint32
 	// TODO: callback server ; thread to send RENEW ?
 }
 
@@ -73,6 +77,7 @@ func (cli *NFSv40Client) Compound(args ...nfs40.NfsArgOp4) ([]nfs40.NfsResOp4) {
 			ArgArray: nfs40.ArgArrayT{Args:args},
 		},
 	})
+	// TODO: increment Seq automatically
 	Expect(err).To(BeNil())
 	Expect(res).ToNot(BeNil())
 	var reply nfs40.COMPOUND4res
@@ -102,7 +107,7 @@ func (cli* NFSv40Client) Null() {
 	Expect(len(b)).To(Equal(0))
 }
 
-func NewNFSv40Client() (client NFSv40Client){
+func NewNFSv40Client() (client NFSv40Client) {
 	client.Auth = rpc.NewAuthUnix(RandString(8)+".fake.net", 0, 0).Auth()
 	var err error
 	client.RpcClient, err = rpc.DialService(Config.ServerHost, Config.ServerPort)
@@ -111,6 +116,7 @@ func NewNFSv40Client() (client NFSv40Client){
 		panic(err.Error())
 	}
 	client.Id = RandString(8)
+	client.Seq = 0
 	cb_cl := nfs40.NfsClientId{
 		Verifier:nfs40.Verifier4{
 			0x04, 0x05, 0x06, 0x07, 0x08, 0x19, 0x1a, 0x1b},

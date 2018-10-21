@@ -14,9 +14,14 @@ import (
 	"github.com/avekceeb/nfsverificator/xdr"
 	"fmt"
 	"flag"
+	"strings"
 )
 
-var Config TestConfig
+var (
+	Config TestConfig
+	Uid uint32 = 0
+	Gid uint32 = 0
+)
 
 func init() {
 	var configFile string
@@ -44,7 +49,21 @@ func hexClientId(id uint64) {
 	var h, l uint64
 	l = 0xffffffff & id
 	h = (0xffffffff00000000 & id) >> 32
-	fmt.Printf("CLIENT: %x/%x\n", uint32(h), uint32(l))
+	fmt.Printf("### New Client: %x/%x\n", uint32(h), uint32(l))
+}
+
+func ExpectOK(res nfs40.COMPOUND4res) {
+	Expect(res).ToNot(BeNil())
+	Expect(res.Status).To(Equal(int32(nfs40.NFS4_OK)))
+	// TODO: this probably is not needed
+	for _, k := range res.ResArray {
+		Expect(nfs40.GetResStatus(&k)).To(Equal(int32(nfs40.NFS4_OK)))
+	}
+}
+
+func ExpectErr(res nfs40.COMPOUND4res, stat uint32) {
+	Expect(res).ToNot(BeNil())
+	Expect(res.Status).To(Equal(int32(stat)))
 }
 
 type NFSv40Client struct {
@@ -57,11 +76,22 @@ type NFSv40Client struct {
 	// TODO: callback server ; thread to send RENEW ?
 }
 
+func (cli *NFSv40Client) MockReboot() {
+	cli.Seq = 0
+	r := rand.Uint64()
+	cli.Verifier = nfs40.Verifier4{
+		byte(r&0xff), byte((r&0xff00)>>8),
+		byte((r&0xff0000)>>16), byte((r&0xff000000)>>24),
+		byte((r&0xff000000)>>32), byte((r&0xff0000000000)>>40),
+		byte((r&0xff000000000000)>>48), byte((r&0xff00000000000000)>>56),
+	}
+}
+
 func (cli *NFSv40Client) Close() {
 	cli.RpcClient.Close()
 }
 
-func (cli *NFSv40Client) Compound(args ...nfs40.NfsArgOp4) ([]nfs40.NfsResOp4) {
+func (cli *NFSv40Client) Compound(args ...nfs40.NfsArgOp4) (reply nfs40.COMPOUND4res) {
 	res, err := cli.RpcClient.Call(nfs40.CompoundMessage{
 		Head: rpc.Header{
 			Rpcvers: 2,
@@ -77,18 +107,22 @@ func (cli *NFSv40Client) Compound(args ...nfs40.NfsArgOp4) ([]nfs40.NfsResOp4) {
 			ArgArray: nfs40.ArgArrayT{Args:args},
 		},
 	})
-	// TODO: increment Seq automatically
+	// TODO: increment Seq automatically ?
+	/*
+	   The client MUST monotonically increment the sequence number for the
+	   CLOSE, LOCK, LOCKU, OPEN, OPEN_CONFIRM, and OPEN_DOWNGRADE
+	   operations.  This is true even in the event that the previous
+	   operation that used the sequence number received an error.  The only
+	   exception to this rule is if the previous operation received one of
+	   the following errors: NFS4ERR_STALE_CLIENTID, NFS4ERR_STALE_STATEID,
+	   NFS4ERR_BAD_STATEID, NFS4ERR_BAD_SEQID, NFS4ERR_BADXDR,
+	   NFS4ERR_RESOURCE, NFS4ERR_NOFILEHANDLE
+	 */
 	Expect(err).To(BeNil())
 	Expect(res).ToNot(BeNil())
-	var reply nfs40.COMPOUND4res
 	err = xdr.Read(res, &reply)
 	Expect(err).To(BeNil())
-	Expect(reply.Status).To(Equal(int32(nfs40.NFS4_OK)))
-	Expect(len(reply.ResArray)).To(Equal(len(args)))
-	for k := range args {
-		Expect(reply.ResArray[k].ResOp).To(Equal(args[k].ArgOp))
-	}
-	return reply.ResArray
+	return reply
 }
 
 func (cli* NFSv40Client) Null() {
@@ -107,41 +141,66 @@ func (cli* NFSv40Client) Null() {
 	Expect(len(b)).To(Equal(0))
 }
 
-func NewNFSv40Client() (client NFSv40Client) {
-	client.Auth = rpc.NewAuthUnix(RandString(8)+".fake.net", 0, 0).Auth()
+func (cli* NFSv40Client) getRootFH() (nfs40.FH4) {
+	ret := cli.Compound(nfs40.PutRootFH(), nfs40.GetFH())
+	Expect(ret.ResArray[1].GetFH.Status).To(Equal(int32(nfs40.NFS4_OK)))
+	return ret.ResArray[1].GetFH.FH
+}
+
+func (cli *NFSv40Client) getExportFH(export string) (fh nfs40.FH4) {
+	fh = cli.getRootFH()
+	for _, k := range strings.Split(export, "/") {
+		if "" == k {
+			continue
+		}
+		ret := cli.Compound(nfs40.PutFH(fh), nfs40.Lookup(k), nfs40.GetFH())
+		fh = ret.ResArray[2].GetFH.FH
+	}
+	return fh
+}
+
+func (cli *NFSv40Client) getFHType(fh nfs40.FH4) ([]byte) {
+	ret := cli.Compound(nfs40.PutFH(fh),
+		nfs40.GetAttr(nfs40.FATTR4_FH_EXPIRE_TYPE))
+	return ret.ResArray[1].GetAttr.Attr.AttrList
+}
+
+func createNFSv40Client(uid uint32, gid uint32, cid string) (client NFSv40Client) {
+	client.Auth = rpc.NewAuthUnix(RandString(8)+".fake.net", uid, gid).Auth()
 	var err error
 	client.RpcClient, err = rpc.DialService(Config.ServerHost, Config.ServerPort)
-	//defer client.Close()
 	if err != nil {
 		panic(err.Error())
 	}
-	client.Id = RandString(8)
-	client.Seq = 0
+	client.Id = cid
+	client.MockReboot()
+	return client
+}
+
+func NewNFSv40Client() (client NFSv40Client) {
+	client = createNFSv40Client(Uid, Gid, RandString(8))
+	// TODO: uid gid
+	//Uid += 1
+	//Gid += 1
 	cb_cl := nfs40.NfsClientId{
-		Verifier:nfs40.Verifier4{
-			0x04, 0x05, 0x06, 0x07, 0x08, 0x19, 0x1a, 0x1b},
+		Verifier: client.Verifier,
 		Id: client.Id}
 	// TODO: real callback server
 	cb := nfs40.CallbackClient{
 		Program:0x40000000,
 		Location: nfs40.ClientAddr{NetId:"tcp", Addr:"127.0.0.1.139.249"}}
-
-	a := nfs40.SETCLIENTID4args{
+	setClientArgs := nfs40.SETCLIENTID4args{
 		Client: cb_cl,
 		Callback: cb,
 		CallbackIdent: 1}
-
-	ret := client.Compound(nfs40.NfsArgOp4{ArgOp:nfs40.OP_SETCLIENTID, SetClientId:a})
-
-	Expect(ret[0].SetClientId.Status).To(Equal(int32(nfs40.NFS4_OK)))
-	client.ClientId = ret[0].SetClientId.ResOk.ClientId
-	client.Verifier = ret[0].SetClientId.ResOk.Verifier
-
+	ret := client.Compound(nfs40.NfsArgOp4{
+		ArgOp:nfs40.OP_SETCLIENTID, SetClientId:setClientArgs})
+	ExpectOK(ret)
+	client.ClientId = ret.ResArray[0].SetClientId.ResOk.ClientId
+	client.Verifier = ret.ResArray[0].SetClientId.ResOk.Verifier
 	hexClientId(client.ClientId)
-
 	// TODO
-	_ = client.Compound(nfs40.GetSetClientConfirm(client.ClientId, client.Verifier))
-	//Expect(ret[0].SetClientIdConfirm. TODO: Status).To(Equal())
+	_ = client.Compound(nfs40.SetClientConfirm(client.ClientId, client.Verifier))
 	return client
 }
 

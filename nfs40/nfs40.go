@@ -111,6 +111,22 @@ const (
 )
 
 const (
+	FH4_PERSISTENT = 0x00000000
+	FH4_NOEXPIRE_WITH_OPEN = 0x00000001
+	FH4_VOLATILE_ANY = 0x00000002
+	FH4_VOL_MIGRATION = 0x00000004
+	FH4_VOL_RENAME = 0x00000008
+)
+
+// nfs_lock_type4
+const (
+	READ_LT = 1
+	WRITE_LT = 2
+	READW_LT = 3
+	WRITEW_LT = 4
+)
+
+const (
 	OP_ACCESS = 3
 	OP_CLOSE = 4
 	OP_COMMIT = 5
@@ -153,7 +169,6 @@ const (
 
 //////////////////////////////////////////////
 
-// TODO:
 type Verifier4 [NFS4_VERIFIER_SIZE]byte
 // nfs_fh4
 type FH4 []byte
@@ -333,12 +348,62 @@ type CLOSE4args struct {
 	StateId StateId4
 }
 
+//////////// LOCKS ///////////////////////////
+
+// lock_owner4
+type LockOwner4 struct {
+	ClientId uint64 // clientid4
+	Owner string
+}
+
+//  open_to_lock_owner4
+type OpenToLockOwner4 struct {
+	SeqId uint32 // seqid4
+	StateId StateId4 // stateid4
+	LockSeqId uint32 // seqid4
+	LockOwner LockOwner4
+}
+
+// exist_lock_owner4
+type ExistLockOwner4 struct {
+	StateId StateId4
+	SeqId uint32 // seqid4
+}
+
+// locker4
+type Locker4 struct {
+	New       bool             `xdr:"union"`           // new_lock_owner;
+	LockOwner ExistLockOwner4  `xdr:"unioncase=0"` // exist_lock_owner4
+	OpenOwner OpenToLockOwner4 `xdr:"unioncase=1"`  // open_to_lock_owner4
+}
+
+type LOCK4args struct {
+	LockType int32 // nfs_lock_type4
+	Reclaim bool
+	Offset uint64
+	Length uint64
+	Locker Locker4
+}
+
+type LOCKT4args struct {
+	LockType int32 // nfs_lock_type4
+	Offset uint64
+	Length uint64
+	Owner LockOwner4
+}
+
+type RELEASE_LOCKOWNER4args struct {
+	LockOwner LockOwner4
+}
+
 // nfs_argop4
 type NfsArgOp4 struct {
 	ArgOp              uint32                   `xdr:"union"`
 	Close              CLOSE4args               `xdr:"unioncase=4"`
 	Create             CREATE4args              `xdr:"unioncase=6"`
 	AttrRequest        []uint32                 `xdr:"unioncase=9"`
+	Lock               LOCK4args                `xdr:"unioncase=12"`
+	LockT              LOCKT4args               `xdr:"unioncase=13"`
 	Lookup             LOOKUP4args              `xdr:"unioncase=15"`
 	Open               OPEN4args                `xdr:"unioncase=18"`
 	OpenConfirm        OPEN_CONFIRM4args        `xdr:"unioncase=20"`
@@ -572,13 +637,35 @@ type WRITE4resok struct {
 }
 
 type WRITE4res struct {
-	Status uint32       `xdr:"union"`
+	Status int32       `xdr:"union"`
 	Result WRITE4resok  `xdr:"unioncase=0"`
 }
 
 type CLOSE4res struct {
 	Status int32 `xdr:"union"`
 	StateId StateId4 `xdr:"unioncase=0"`
+}
+
+type LOCK4denied struct {
+	Offset uint64
+	Length uint64
+	LockType int32 // nfs_lock_type4
+	Owner LockOwner4
+}
+
+type LOCK4resok struct {
+	StateId StateId4
+}
+
+type LOCK4res struct {
+	Status int32 `xdr:"union"`
+	Result LOCK4resok `xdr:"unioncase=0"`
+	Denied	LOCK4denied `xdr:"unioncase=1"` // TODO
+}
+
+type LOCKT4res struct {
+	Status int32       `xdr:"union"`
+	Denied LOCK4denied `xdr:"unioncase=10010"` // NFS4ERR_DENIED
 }
 
 // nfs_resop4
@@ -588,6 +675,8 @@ type NfsResOp4 struct {
 	Create             CREATE4res              `xdr:"unioncase=6"`
 	GetAttr            GETATTR4res             `xdr:"unioncase=9"`
 	GetFH              GETFH4res               `xdr:"unioncase=10"`
+	Lock               LOCK4res                `xdr:"unioncase=12"`
+	LockT              LOCKT4res               `xdr:"unioncase=13"`
 	Lookup             LOOKUP4res              `xdr:"unioncase=15"`
 	Open               OPEN4res                `xdr:"unioncase=18"`
 	OpenConfirm        OPEN_CONFIRM4res        `xdr:"unioncase=20"`
@@ -597,6 +686,44 @@ type NfsResOp4 struct {
 	SetClientId	       SETCLIENTID4res         `xdr:"unioncase=35"`
 	SetClientIdConfirm SETCLIENTID_CONFIRM4res `xdr:"unioncase=36"`
 	Write              WRITE4res               `xdr:"unioncase=38"`
+}
+
+func GetResStatus(res *NfsResOp4) (int32) {
+	// res != nil
+	switch res.ResOp {
+	case OP_CLOSE:
+		return res.Close.Status
+	case OP_CREATE:
+		return res.Create.Status
+	case OP_GETATTR:
+		return res.GetAttr.Status
+	case OP_GETFH:
+		return res.GetFH.Status
+	case OP_LOOKUP:
+		return res.Lookup.Status
+	case OP_LOCK:
+		return res.Lock.Status
+	case OP_LOCKT:
+		return res.LockT.Status
+	case OP_OPEN:
+		return res.Open.Status
+	case OP_OPEN_CONFIRM:
+		return res.OpenConfirm.Status
+	case OP_PUTFH:
+		return res.PutFH.Status
+	case OP_PUTROOTFH:
+		return res.PutRootFH.Status
+	case OP_READDIR:
+		return res.ReadDir.Status
+	case OP_SETCLIENTID:
+		return res.SetClientId.Status
+	case OP_SETCLIENTID_CONFIRM:
+		return res.SetClientIdConfirm.Status
+	case OP_WRITE:
+		return res.Write.Status
+	default:
+		return NFS4ERR_INVAL
+	}
 }
 
 type COMPOUND4res struct {

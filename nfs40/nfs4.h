@@ -684,12 +684,7 @@ struct LINK4res {
 };
 typedef struct LINK4res LINK4res;
 
-struct open_to_lock_owner4 {
-	seqid4 open_seqid;
-	stateid4 open_stateid;
-	seqid4 lock_seqid;
-	lock_owner4 lock_owner;
-};
+
 typedef struct open_to_lock_owner4 open_to_lock_owner4;
 
 struct exist_lock_owner4 {

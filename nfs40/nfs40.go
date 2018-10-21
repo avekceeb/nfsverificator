@@ -173,6 +173,8 @@ type Verifier4 [NFS4_VERIFIER_SIZE]byte
 // nfs_fh4
 type FH4 []byte
 
+type GETATTR4args []uint32
+
 type PUTFH4args struct {
 	FH FH4
 }
@@ -399,20 +401,36 @@ type RELEASE_LOCKOWNER4args struct {
 // nfs_argop4
 type NfsArgOp4 struct {
 	ArgOp              uint32                   `xdr:"union"`
+	//Access             ACCESS4args              `xdr:"unioncase=3"`
 	Close              CLOSE4args               `xdr:"unioncase=4"`
+	//Commit             COMMIT4args              `xdr:"unioncase=5"`
 	Create             CREATE4args              `xdr:"unioncase=6"`
-	AttrRequest        []uint32                 `xdr:"unioncase=9"`
+	//DelegPurge         DELEGPURGE4args          `xdr:"unioncase=7"`
+	//DelegReturn        DELEGRETURN4args         `xdr:"unioncase=8"`
+	GetAttr            GETATTR4args             `xdr:"unioncase=9"`
+	//Link               LINK4args                `xdr:"unioncase=11"`
 	Lock               LOCK4args                `xdr:"unioncase=12"`
 	LockT              LOCKT4args               `xdr:"unioncase=13"`
+	//LockU              LOCKU4args               `xdr:"unioncase=14"`
 	Lookup             LOOKUP4args              `xdr:"unioncase=15"`
+	//NVerify            NVERIFY4args             `xdr:"unioncase=17"`
 	Open               OPEN4args                `xdr:"unioncase=18"`
+	//OpenAttr           OPENATTR4args            `xdr:"unioncase=19"`
 	OpenConfirm        OPEN_CONFIRM4args        `xdr:"unioncase=20"`
+	//OpenDowngrade      OPEN_DOWNGRADE4args      `xdr:"unioncase=21"`
 	PutFH              PUTFH4args               `xdr:"unioncase=22"`
+	//Read               READ4args                `xdr:"unioncase=25"`
 	ReadDir            READDIR4args             `xdr:"unioncase=26"`
+	//Remove             REMOVE4args              `xdr:"unioncase=28"`
+	//Rename             RENAME4args              `xdr:"unioncase=29"`
+	//Renew              RENEW4args               `xdr:"unioncase=30"`
+	//Secinfo            SECINFO4args             `xdr:"unioncase=33"`
 	SetAttr            SETATTR4args             `xdr:"unioncase=34"`
 	SetClientId        SETCLIENTID4args         `xdr:"unioncase=35"`
 	SetClientIdConfirm SETCLIENTID_CONFIRM4args `xdr:"unioncase=36"`
+	//Verify             VERIFY4args              `xdr:"unioncase=37"`
 	Write              WRITE4args               `xdr:"unioncase=38"`
+	ReleaseLockOwner   RELEASE_LOCKOWNER4args   `xdr:"unioncase=39"`
 }
 
 type ArgArrayT struct {

@@ -29,7 +29,7 @@ func Lookup(file string) (NfsArgOp4) {
 
 func GetAttr(bits ...int) (NfsArgOp4) {
 	return NfsArgOp4{ArgOp:OP_GETATTR,
-					AttrRequest:GetBitmap(bits...)}
+					GetAttr:GetBitmap(bits...)}
 }
 
 func SetAttr(s_id StateId4, bm []uint32, attr []byte) (NfsArgOp4) {

@@ -1,0 +1,35 @@
+package todo 
+
+const (
+	// Enums:
+{{range .EnumVals}}    {{.Name}} = {{.Val}} // {{.OrigName}}
+{{end}}
+	// Consts:
+{{range .Consts}}    {{.Name}} = {{.Val}} // {{.OrigName}}
+{{end}}
+)
+
+
+{{range .Typedefs}}type {{.Name}} {{.Type}} // {{.OrigName}}
+{{end}}
+
+
+{{range .Enums}}type {{.Name}} {{.Type}} // {{.OrigName}}
+{{end}}
+
+
+{{range .Structs}}type {{.Name}} struct { // {{.OrigName}}
+{{range .Members}}    {{.Name}} {{.Type}}
+{{end -}}
+}
+{{end}}
+
+
+{{range .Unions}}
+
+type {{.Name}} struct {
+    {{.DiscriminantName}} {{.DiscriminantType}} `xdr:"union"`
+{{range .Cases}}    {{.Name}}  {{.Type}}  `xdr:"unioncase={{.DiscriminantVal}}"` // {{.CaseName}}
+{{end -}}
+}
+{{end}}

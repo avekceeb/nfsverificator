@@ -4,6 +4,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	. "github.com/avekceeb/nfsverificator/nfs40"
+	"time"
 )
 
 var (
@@ -15,7 +16,7 @@ var (
 var _ = Describe("NFSv4.0", func() {
 
 	BeforeSuite(func() {
-		client = NewNFSv40Client()
+		client = newNFSv40Client()
 		Expect(len(Config.Exports) > 0).To(BeTrue())
 		export = Config.Exports[0]
 		rootFH = client.getExportFH(export)
@@ -28,6 +29,7 @@ var _ = Describe("NFSv4.0", func() {
 	Context("Basic", func() {
 
 		It("Read Dir", func() {
+			Skip("Not ready")
 			ret := client.Compound(PutFH(rootFH), CreateDir(RandString(16)))
 			ExpectOK(ret)
 			ret = client.Compound(PutFH(rootFH), ReadDir())
@@ -39,12 +41,13 @@ var _ = Describe("NFSv4.0", func() {
 		})
 
 		It("Write File", func() {
+			Skip("Not ready")
 			// Client1
-			cli1 := NewNFSv40Client()
+			cli1 := newNFSv40Client()
 			fh := cli1.getExportFH(export)
 
 			// Client2
-			cli2 := NewNFSv40Client()
+			cli2 := newNFSv40Client()
 			//cli2 := createNFSv40Client()
 			// 1
 			fileName := RandString(8)
@@ -71,6 +74,8 @@ var _ = Describe("NFSv4.0", func() {
 			cli2.Seq += 1
 			stateIdOther := retOther.ResArray[1].Open.Result.StateId
 			newFHOther := retOther.ResArray[2].GetFH.FH
+
+			time.Sleep(100 * time.Second)
 
 			d := []byte{0x41,0x41,0x41,0x41,0x41,0x41}
 			ret = cli1.Compound(PutFH(newFH), Write(newStateId, &d, uint64(32)))
@@ -104,7 +109,7 @@ var _ = Describe("NFSv4.0", func() {
 			Skip("This is scale")
 			Expect(len(Config.Exports) > 0).To(BeTrue())
 			export := Config.Exports[0]
-			cli1 := NewNFSv40Client()
+			cli1 := newNFSv40Client()
 			fh := cli1.getExportFH(export)
 			fileName := RandString(8)
 			ret := cli1.Compound(

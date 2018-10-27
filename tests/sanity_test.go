@@ -10,8 +10,6 @@ import (
 	"os"
 	"math/rand"
 	"time"
-	"github.com/avekceeb/nfsverificator/rpc"
-	"github.com/avekceeb/nfsverificator/xdr"
 	"fmt"
 	"flag"
 	"strings"
@@ -19,6 +17,7 @@ import (
 
 var (
 	Config TestConfig
+	// TODO: config? ; rotate?
 	Uid uint32 = 0
 	Gid uint32 = 0
 )
@@ -66,84 +65,9 @@ func ExpectErr(res nfs40.COMPOUND4res, stat uint32) {
 	Expect(res.Status).To(Equal(int32(stat)))
 }
 
-type NFSv40Client struct {
-	RpcClient      *rpc.Client
-	Auth           rpc.Auth
-	ClientId       uint64
-	Verifier       nfs40.Verifier4
-	Id             string
-	Seq            uint32
-	// TODO: callback server ; thread to send RENEW ?
-}
-
-func (cli *NFSv40Client) MockReboot() {
-	cli.Seq = 0
-	r := rand.Uint64()
-	cli.Verifier = nfs40.Verifier4{
-		byte(r&0xff), byte((r&0xff00)>>8),
-		byte((r&0xff0000)>>16), byte((r&0xff000000)>>24),
-		byte((r&0xff000000)>>32), byte((r&0xff0000000000)>>40),
-		byte((r&0xff000000000000)>>48), byte((r&0xff00000000000000)>>56),
-	}
-}
-
-func (cli *NFSv40Client) Close() {
-	cli.RpcClient.Close()
-}
-
-func (cli *NFSv40Client) Compound(args ...nfs40.NfsArgOp4) (reply nfs40.COMPOUND4res) {
-	res, err := cli.RpcClient.Call(nfs40.CompoundMessage{
-		Head: rpc.Header{
-			Rpcvers: 2,
-			Prog:    nfs40.NFS4_PROGRAM,
-			Vers:    nfs40.NFS_V4,
-			Proc:    nfs40.NFSPROC4_COMPOUND,
-			Cred:    cli.Auth,
-			Verf:    rpc.AuthNull,
-		},
-		Args: nfs40.COMPOUND4args{
-			Tag: "",
-			MinorVersion: 0,
-			ArgArray: nfs40.ArgArrayT{Args:args},
-		},
-	})
-	// TODO: increment Seq automatically ?
-	/*
-	   The client MUST monotonically increment the sequence number for the
-	   CLOSE, LOCK, LOCKU, OPEN, OPEN_CONFIRM, and OPEN_DOWNGRADE
-	   operations.  This is true even in the event that the previous
-	   operation that used the sequence number received an error.  The only
-	   exception to this rule is if the previous operation received one of
-	   the following errors: NFS4ERR_STALE_CLIENTID, NFS4ERR_STALE_STATEID,
-	   NFS4ERR_BAD_STATEID, NFS4ERR_BAD_SEQID, NFS4ERR_BADXDR,
-	   NFS4ERR_RESOURCE, NFS4ERR_NOFILEHANDLE
-	 */
-	Expect(err).To(BeNil())
-	Expect(res).ToNot(BeNil())
-	err = xdr.Read(res, &reply)
-	Expect(err).To(BeNil())
-	return reply
-}
-
-func (cli* NFSv40Client) Null() {
-	res, err := cli.RpcClient.Call(rpc.Header{
-		Rpcvers: 2,
-		Prog:    nfs40.NFS4_PROGRAM,
-		Vers:    nfs40.NFS_V4,
-		Proc:    nfs40.NFSPROC4_NULL,
-		Cred:    cli.Auth,
-		Verf:    rpc.AuthNull,
-	})
-	Expect(err).To(BeNil())
-	Expect(res).ToNot(BeNil())
-	var b []byte
-	res.Read(b)
-	Expect(len(b)).To(Equal(0))
-}
-
 func (cli* NFSv40Client) getRootFH() (nfs40.FH4) {
 	ret := cli.Compound(nfs40.PutRootFH(), nfs40.GetFH())
-	Expect(ret.ResArray[1].GetFH.Status).To(Equal(int32(nfs40.NFS4_OK)))
+	ExpectOK(ret)
 	return ret.ResArray[1].GetFH.FH
 }
 
@@ -165,23 +89,9 @@ func (cli *NFSv40Client) getFHType(fh nfs40.FH4) ([]byte) {
 	return ret.ResArray[1].GetAttr.Attr.AttrList
 }
 
-func createNFSv40Client(uid uint32, gid uint32, cid string) (client NFSv40Client) {
-	client.Auth = rpc.NewAuthUnix(RandString(8)+".fake.net", uid, gid).Auth()
-	var err error
-	client.RpcClient, err = rpc.DialService(Config.ServerHost, Config.ServerPort)
-	if err != nil {
-		panic(err.Error())
-	}
-	client.Id = cid
-	client.MockReboot()
-	return client
-}
-
-func NewNFSv40Client() (client NFSv40Client) {
-	client = createNFSv40Client(Uid, Gid, RandString(8))
-	// TODO: uid gid
-	//Uid += 1
-	//Gid += 1
+func newNFSv40Client() (client NFSv40Client) {
+	client = NewNFSv40Client(Config.ServerHost, Config.ServerPort, RandString(8)+".fake.net", Uid, Gid, RandString(8))
+	Expect(client).NotTo(BeNil())
 	cb_cl := nfs40.NfsClientId{
 		Verifier: client.Verifier,
 		Id: client.Id}
@@ -193,16 +103,15 @@ func NewNFSv40Client() (client NFSv40Client) {
 		Client: cb_cl,
 		Callback: cb,
 		CallbackIdent: 1}
-	ret := client.Compound(nfs40.NfsArgOp4{
+	r := client.Compound(nfs40.NfsArgOp4{
 		ArgOp:nfs40.OP_SETCLIENTID, SetClientId:setClientArgs})
-	ExpectOK(ret)
-	client.ClientId = ret.ResArray[0].SetClientId.ResOk.ClientId
-	client.Verifier = ret.ResArray[0].SetClientId.ResOk.Verifier
-	hexClientId(client.ClientId)
-	// TODO
-	_ = client.Compound(nfs40.SetClientConfirm(client.ClientId, client.Verifier))
+	ExpectOK(r)
+	client.ClientId = r.ResArray[0].SetClientId.ResOk.ClientId
+	client.Verifier = r.ResArray[0].SetClientId.ResOk.Verifier
+	ExpectOK(client.Compound(nfs40.SetClientConfirm(client.ClientId, client.Verifier)))
 	return client
 }
+
 
 func TestSanity(t *testing.T) {
     RegisterFailHandler(Fail)

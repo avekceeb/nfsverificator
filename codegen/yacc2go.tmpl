@@ -1,16 +1,17 @@
-package todo 
+package v40 
 
 const (
 	// Enums:
-{{range .EnumVals}}    {{.Name}} = {{.Val}} // {{.OrigName}}
+{{range .EnumVals}}	{{.Name}} = {{.Val}} // {{.OrigName}}
 {{end}}
 	// Consts:
-{{range .Consts}}    {{.Name}} = {{.Val}} // {{.OrigName}}
+{{range .Consts}}	{{.Name}} = {{.Val}} // {{.OrigName}}
 {{end}}
 )
 
 
-{{range .Typedefs}}type {{.Name}} {{.Type}} // {{.OrigName}}
+{{range .Typedefs}}
+type {{.Name}} {{.Type}} // {{.OrigName}}
 {{end}}
 
 
@@ -18,8 +19,10 @@ const (
 {{end}}
 
 
-{{range .Structs}}type {{.Name}} struct { // {{.OrigName}}
-{{range .Members}}    {{.Name}} {{.Type}}
+{{range .Structs}}
+
+type {{.Name}} struct { // {{.OrigName}}
+{{range .Members}}	{{.Name}} {{.Type}}
 {{end -}}
 }
 {{end}}
@@ -28,8 +31,8 @@ const (
 {{range .Unions}}
 
 type {{.Name}} struct {
-    {{.DiscriminantName}} {{.DiscriminantType}} `xdr:"union"`
-{{range .Cases}}    {{.Name}}  {{.Type}}  `xdr:"unioncase={{.DiscriminantVal}}"` // {{.CaseName}}
+	{{.DiscriminantName}} {{.DiscriminantType}} `xdr:"union"`
+{{range .Cases}}	{{.Name}}  {{.Type}}  `xdr:"unioncase={{.DiscriminantVal}}"` // {{.CaseName}}
 {{end -}}
 }
 {{end}}

@@ -124,6 +124,7 @@ type Typedef struct {
 // tells you what kind of thing you're looking at, and a number of encodings.
 type Union struct {
 	Name             string
+	//OrigName         string
 	DiscriminantName string
 	DiscriminantType string
 	Cases            []Case
@@ -410,10 +411,10 @@ func addEnumVal(name string, val int64, meta *ProcMeta) error {
 
 // AddConst adds a new constant to the parser's list.
 func AddConst(name, val string) error {
-	_, err := parseNumber(val)
-	if err != nil {
-		return fmt.Errorf("invalid const value %v = %v", name, val)
-	}
+	//_, err := parseNumber(val)
+	//if err != nil {
+	//	return fmt.Errorf("invalid const value %v = %v", name, val)
+	//}
 	goname := constNameTransform(name)
 	Gen.Consts = append(Gen.Consts, ConstItem{goname, name, val})
 	return nil

@@ -71,7 +71,7 @@ const NFS4_OTHER_SIZE           = 12;
 const NFS4_OPAQUE_LIMIT         = 1024;
 
 const NFS4_INT64_MAX            = 0x7fffffffffffffff;
-/*const NFS4_UINT64_MAX           = 0xffffffffffffffff;*/
+const NFS4_UINT64_MAX           = 0xffffffffffffffff;
 const NFS4_INT32_MAX            = 0x7fffffff;
 const NFS4_UINT32_MAX           = 0xffffffff;
 
@@ -651,9 +651,9 @@ union createtype4 switch (nfs_ftype4 type) {
  case NF4LNK:
          linktext4 linkdata;
  case NF4BLK:
-         linktext4 linkdata;
+         specdata4 blkdata;
  case NF4CHR:
-         specdata4 devdata;
+         specdata4 chrdata;
  default:
          void;  /* server should return NFS4ERR_BADTYPE */
 };

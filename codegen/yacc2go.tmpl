@@ -1,4 +1,4 @@
-package v40 
+//package v40 
 
 const (
 	// Enums:
@@ -10,8 +10,7 @@ const (
 )
 
 
-{{range .Typedefs}}
-type {{.Name}} {{.Type}} // {{.OrigName}}
+{{range .Typedefs}}type {{.Name}} {{.Type}} // {{.OrigName}}
 {{end}}
 
 
@@ -32,7 +31,16 @@ type {{.Name}} struct { // {{.OrigName}}
 
 type {{.Name}} struct {
 	{{.DiscriminantName}} {{.DiscriminantType}} `xdr:"union"`
-{{range .Cases}}	{{.Name}}  {{.Type}}  `xdr:"unioncase={{.DiscriminantVal}}"` // {{.CaseName}}
+{{range .Cases}}	{{if not .Name}}//{{end}}{{.Name}}  {{.Type}}  `xdr:"unioncase={{.DiscriminantVal}}"` // {{.CaseName}}
 {{end -}}
 }
 {{end}}
+
+
+{{range .ArgFunc}}
+
+func {{.Name}} ({{.Args}}) (NfsArgop4) {
+	return NfsArgop4{Argop:{{.OpNum}}{{if .Op}}, {{.Op}}:{{.Type}}{ {{.Init}} }{{end}} }
+}
+{{end}}
+

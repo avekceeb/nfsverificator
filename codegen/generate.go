@@ -43,6 +43,8 @@ type Generator struct {
 	UnionMap map[string]int
 	// Procs holds all the discovered libvirt procedures.
 	Procs []Proc
+
+	ArgFunc []Func
 }
 
 // Gen accumulates items as the parser runs, and is then used to produce the
@@ -156,6 +158,15 @@ type ProcMeta struct {
 	WriteStream int
 }
 
+type Func struct {
+	Name  string
+	OpNum string
+	Args  string
+	Init  string
+	Op    string
+	Type  string
+}
+
 type structStack []*Structure
 
 // CurrentStruct will point to a struct record if we're in a struct declaration.
@@ -198,10 +209,12 @@ var CurrentUnion *Union
 // a case statement.
 var CurrentCase *Case
 
+var CurrentFunc *Func
+
 // Generate will output go bindings for libvirt. The lvPath parameter should be
 // the path to the root of the libvirt source directory to use for the
 // generation.
-func Generate(proto io.Reader) error {
+func Generate(proto io.Reader, outFileName string) error {
 	Gen.StructMap = make(map[string]int)
 	Gen.UnionMap = make(map[string]int)
 	lexer, err := NewLexer(proto)
@@ -219,7 +232,7 @@ func Generate(proto io.Reader) error {
 	}
 
 	// Generate and write the output.
-	outFile, err := os.Create("./out.go")
+	outFile, err := os.Create(outFileName)
 	if err != nil {
 		return err
 	}
@@ -548,12 +561,35 @@ func StartCase(dvalue string) {
 			break
 		}
 	}
+	// special case for NfsArgop4
+	if "NfsArgop4" == CurrentUnion.Name {
+		CurrentFunc = &Func{Name: caseName, OpNum: dvalue, Args:"", Op:"TODO", Type:"TODO"}
+
+	}
 	CurrentCase = &Case{CaseName: caseName, DiscriminantVal: dvalue}
 }
 
 // AddCase is called when the parser finishes parsing a case.
 func AddCase() {
 	CurrentUnion.Cases = append(CurrentUnion.Cases, *CurrentCase)
+	// special case for NfsArgop4
+	if nil != CurrentFunc {
+		CurrentFunc.Op = CurrentCase.Name
+		CurrentFunc.Type = CurrentCase.Type
+		ix, ok := Gen.StructMap[CurrentCase.Type]
+		if ok {
+			a := make([]string, 0)
+			i := make([]string, 0)
+			for _, v := range Gen.Structs[ix].Members {
+				a = append(a, fmt.Sprintf("%s %s", strings.ToLower(v.Name), v.Type))
+				i = append(i, fmt.Sprintf("%s:%s", v.Name, strings.ToLower(v.Name)))
+			}
+			CurrentFunc.Args = strings.Join(a, ", ")
+			CurrentFunc.Init = strings.Join(i, ", ")
+		}
+		Gen.ArgFunc = append(Gen.ArgFunc, *CurrentFunc)
+		CurrentFunc = nil
+	}
 	CurrentCase = nil
 }
 

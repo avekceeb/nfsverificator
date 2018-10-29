@@ -52,15 +52,31 @@
  *
  */
 
+/* These are not from RFC (Dmitry A.) */
+const RPCSEC_GSS = 6;
+const FALSE=0;
+const TRUE=1;
+
+/* These are written manually too (Dmitry A.) */
+const NFS4_PROGRAM = 100003;
+const NFS_V4 = 4;
+const NFSPROC4_NULL = 0;
+const NFSPROC4_COMPOUND = 1;
+const NFS4_CALLBACK = 0x40000000;
+const NFS_CB = 1;
+
 /*
  * Basic typedefs for RFC 1832 data type definitions
  */
+
 /*
- * typedef int          int32_t;
- * typedef unsigned int uint32_t;
- * typedef hyper                int64_t;
- * typedef unsigned hyper       uint64_t;
- */
+   These are hardcoded into parser (Dmitry A.)
+
+typedef int     int32_t;
+typedef unsigned int    uint32_t;
+typedef hyper       int64_t;
+typedef unsigned hyper  uint64_t;
+*/
 
 /*
  * Sizes

@@ -4,7 +4,7 @@ SKIP :=
 GINKGO_OPTS :=
 
 test:
-	ginkgo -v $(GINKGO_OPTS) -focus "${FOCUS}" -skip "${SKIP}" ./tests
+	ginkgo -v $(GINKGO_OPTS) -focus "${FOCUS}" -skip "${SKIP}" ./tests/v40
 
 dryrun:
-	ginkgo -v -dryRun ./tests -- -runtime=dryrun
+	ginkgo -v -dryRun ./tests/v40 -- -runtime=dryrun

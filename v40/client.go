@@ -2,8 +2,8 @@ package v40
 
 import (
 	"github.com/avekceeb/nfsverificator/rpc"
-	"math/rand"
 	"github.com/avekceeb/nfsverificator/xdr"
+	"math/rand"
 	"errors"
 )
 
@@ -40,6 +40,20 @@ func (cli *V40) MockReboot() {
 
 func (cli *V40) Close() {
 	cli.RpcClient.Close()
+}
+
+func (cli *V40) GetClientID() (NfsClientID4) {
+	// TODO: ???
+	return NfsClientID4{
+		Verifier: cli.Verifier,
+		ID: []byte(cli.Id)}
+}
+
+func (cli *V40) GetCallBack() (CbClient4) {
+	// TODO: real client, calculate address
+	return CbClient4{
+		CbProgram:0x40000000,
+		CbLocation: Clientaddr4{RNetid:"tcp", RAddr:"127.0.0.1.139.249"}}
 }
 
 func (cli *V40) Compound(args ...NfsArgop4) (reply COMPOUND4res) {
@@ -100,7 +114,8 @@ func (cli*V40) Null() (error) {
 }
 
 
-func NewV40(srvHost string, srvPort int, authHost string, uid uint32, gid uint32, cid string) (client V40) {
+func NewV40(srvHost string, srvPort int, authHost string, uid uint32, gid uint32, cid string) (*V40) {
+	client := V40{}
 	client.Auth = rpc.NewAuthUnix(authHost, uid, gid).Auth()
 	var err error
 	client.RpcClient, err = rpc.DialService(srvHost, srvPort)
@@ -109,5 +124,5 @@ func NewV40(srvHost string, srvPort int, authHost string, uid uint32, gid uint32
 	}
 	client.Id = cid
 	client.MockReboot()
-	return client
+	return &client
 }

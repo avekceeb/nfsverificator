@@ -1,10 +1,13 @@
-all: sunrpc.go v40.go 
+all: sunrpc.go v40.go v41.go 
 
 sunrpc.go: sunrpc.y
 	goyacc -o sunrpc.go -p "yy" -v /dev/null sunrpc.y
 
 v40.go: sunrpc.go v40.x
 	go run main/main.go v40.x v40.go
+
+v41.go: sunrpc.go v41.x
+	go run main/main.go v41.x v41.go
 
 cleanall: clean
 	rm -f sunrpc.go

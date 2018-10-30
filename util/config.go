@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
+	"math/rand"
 )
 
 type TestConfig struct {
@@ -23,3 +24,15 @@ func ReadConfig(configPath string) (config TestConfig) {
 	json.Unmarshal(bytes, &config)
 	return config
 }
+
+const letters = "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz"
+
+func RandString(n int) string {
+    var l int64 = int64(len(letters))
+    b := make([]byte, n)
+    for i := 0; i < n; i++ {
+        b[i] = letters[int(rand.Int63n(l))]
+    }
+    return string(b)
+}
+

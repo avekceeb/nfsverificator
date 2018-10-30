@@ -1,6 +1,6 @@
 {
-	"server-host": "oel76x110",
+	"server-host": "172.16.0.110",
 	"server-port": 2049,
-	"exports"    : ["/srv/share"],
+	"exports"    : ["/mnt/test"],
 	"exports-ro" : ["/usr/bin"]
 }

@@ -289,82 +289,14 @@ const (
 
 )
 
+// Most of the typedefs are replaced by basic go types
 
-type Attrlist4 []byte // attrlist4
-type Bitmap4 []uint32 // bitmap4
-type Changeid4 uint64 // changeid4
-type Clientid4 uint64 // clientid4
-type Count4 uint32 // count4
-type Length4 uint64 // length4
-type Mode4 uint32 // mode4
-type NfsCookie4 uint64 // nfs_cookie4
-type NfsFh4 []byte // nfs_fh4
-type NfsLease4 uint32 // nfs_lease4
-type Offset4 uint64 // offset4
-type Qop4 uint32 // qop4
-type SecOid4 []byte // sec_oid4
-type Seqid4 uint32 // seqid4
-type Utf8string string // utf8string
-type Utf8strCis Utf8string // utf8str_cis
-type Utf8strCs Utf8string // utf8str_cs
-type Utf8strMixed Utf8string // utf8str_mixed
-type Component4 Utf8strCs // component4
-type Linktext4 string // linktext4
-type AsciiRequired4 Utf8string // ascii_REQUIRED4
-type Pathname4 []Component4 // pathname4
-type NfsLockid4 uint64 // nfs_lockid4
+type NfsFh4 [NFS4_FHSIZE]byte
 type Verifier4 [NFS4_VERIFIER_SIZE]byte // verifier4
-type Acetype4 uint32 // acetype4
-type Aceflag4 uint32 // aceflag4
-type Acemask4 uint32 // acemask4
-type Fattr4SupportedAttrs Bitmap4 // fattr4_supported_attrs
-type Fattr4Type NfsFtype4 // fattr4_type
-type Fattr4FhExpireType uint32 // fattr4_fh_expire_type
-type Fattr4Change Changeid4 // fattr4_change
-type Fattr4Size uint64 // fattr4_size
-type Fattr4LinkSupport bool // fattr4_link_support
-type Fattr4SymlinkSupport bool // fattr4_symlink_support
-type Fattr4NamedAttr bool // fattr4_named_attr
 type Fattr4Fsid Fsid4 // fattr4_fsid
-type Fattr4UniqueHandles bool // fattr4_unique_handles
-type Fattr4LeaseTime NfsLease4 // fattr4_lease_time
-type Fattr4RdattrError Nfsstat4 // fattr4_rdattr_error
 type Fattr4Acl []Nfsace4 // fattr4_acl
-type Fattr4Aclsupport uint32 // fattr4_aclsupport
-type Fattr4Archive bool // fattr4_archive
-type Fattr4Cansettime bool // fattr4_cansettime
-type Fattr4CaseInsensitive bool // fattr4_case_insensitive
-type Fattr4CasePreserving bool // fattr4_case_preserving
-type Fattr4ChownRestricted bool // fattr4_chown_restricted
-type Fattr4Fileid uint64 // fattr4_fileid
-type Fattr4FilesAvail uint64 // fattr4_files_avail
-type Fattr4Filehandle NfsFh4 // fattr4_filehandle
-type Fattr4FilesFree uint64 // fattr4_files_free
-type Fattr4FilesTotal uint64 // fattr4_files_total
 type Fattr4FsLocations FsLocations4 // fattr4_fs_locations
-type Fattr4Hidden bool // fattr4_hidden
-type Fattr4Homogeneous bool // fattr4_homogeneous
-type Fattr4Maxfilesize uint64 // fattr4_maxfilesize
-type Fattr4Maxlink uint32 // fattr4_maxlink
-type Fattr4Maxname uint32 // fattr4_maxname
-type Fattr4Maxread uint64 // fattr4_maxread
-type Fattr4Maxwrite uint64 // fattr4_maxwrite
-type Fattr4Mimetype AsciiRequired4 // fattr4_mimetype
-type Fattr4Mode Mode4 // fattr4_mode
-type Fattr4MountedOnFileid uint64 // fattr4_mounted_on_fileid
-type Fattr4NoTrunc bool // fattr4_no_trunc
-type Fattr4Numlinks uint32 // fattr4_numlinks
-type Fattr4Owner Utf8strMixed // fattr4_owner
-type Fattr4OwnerGroup Utf8strMixed // fattr4_owner_group
-type Fattr4QuotaAvailHard uint64 // fattr4_quota_avail_hard
-type Fattr4QuotaAvailSoft uint64 // fattr4_quota_avail_soft
-type Fattr4QuotaUsed uint64 // fattr4_quota_used
 type Fattr4Rawdev Specdata4 // fattr4_rawdev
-type Fattr4SpaceAvail uint64 // fattr4_space_avail
-type Fattr4SpaceFree uint64 // fattr4_space_free
-type Fattr4SpaceTotal uint64 // fattr4_space_total
-type Fattr4SpaceUsed uint64 // fattr4_space_used
-type Fattr4System bool // fattr4_system
 type Fattr4TimeAccess Nfstime4 // fattr4_time_access
 type Fattr4TimeAccessSet Settime4 // fattr4_time_access_set
 type Fattr4TimeBackup Nfstime4 // fattr4_time_backup
@@ -374,25 +306,6 @@ type Fattr4TimeMetadata Nfstime4 // fattr4_time_metadata
 type Fattr4TimeModify Nfstime4 // fattr4_time_modify
 type Fattr4TimeModifySet Settime4 // fattr4_time_modify_set
 type SECINFO4resok []Secinfo4 // SECINFO4resok
-
-
-
-type NfsFtype4 int32 // nfs_ftype4
-type Nfsstat4 int32 // nfsstat4
-type TimeHow4 int32 // time_how4
-type NfsLockType4 int32 // nfs_lock_type4
-type Createmode4 int32 // createmode4
-type Opentype4 int32 // opentype4
-type LimitBy4 int32 // limit_by4
-type OpenDelegationType4 int32 // open_delegation_type4
-type OpenClaimType4 int32 // open_claim_type4
-type RpcGssSvcT int32 // rpc_gss_svc_t
-type StableHow4 int32 // stable_how4
-type NfsOpnum4 int32 // nfs_opnum4
-type NfsCbOpnum4 int32 // nfs_cb_opnum4
-
-
-
 
 
 type Nfstime4 struct { // nfstime4
@@ -408,22 +321,22 @@ type Fsid4 struct { // fsid4
 
 
 type FsLocation4 struct { // fs_location4
-	Server []Utf8strCis
-	Rootpath Pathname4
+	Server []string
+	Rootpath []string
 }
 
 
 type FsLocations4 struct { // fs_locations4
-	FsRoot Pathname4
+	FsRoot []string
 	Locations []FsLocation4
 }
 
 
 type Nfsace4 struct { // nfsace4
-	Type Acetype4
-	Flag Aceflag4
-	AccessMask Acemask4
-	Who Utf8strMixed
+	Type uint32
+	Flag uint32
+	AccessMask uint32
+	Who string
 }
 
 
@@ -434,15 +347,15 @@ type Specdata4 struct { // specdata4
 
 
 type Fattr4 struct { // fattr4
-	Attrmask Bitmap4
-	AttrVals Attrlist4
+	Attrmask []uint32
+	AttrVals []byte
 }
 
 
 type ChangeInfo4 struct { // change_info4
 	Atomic bool
-	Before Changeid4
-	After Changeid4
+	Before uint64
+	After uint64
 }
 
 
@@ -466,19 +379,19 @@ type Stateid4 struct { // stateid4
 
 type NfsClientID4 struct { // nfs_client_id4
 	Verifier Verifier4
-	ID []byte
+	ID string //[]byte
 }
 
 
 type OpenOwner4 struct { // open_owner4
-	Clientid Clientid4
-	Owner []byte
+	Clientid uint64
+	Owner string //[]byte
 }
 
 
 type LockOwner4 struct { // lock_owner4
-	Clientid Clientid4
-	Owner []byte
+	Clientid uint64
+	Owner string //[]byte
 }
 
 
@@ -494,14 +407,14 @@ type ACCESS4resok struct { // ACCESS4resok
 
 
 type CLOSE4args struct { // CLOSE4args
-	Seqid Seqid4
+	Seqid uint32
 	OpenStateid Stateid4
 }
 
 
 type COMMIT4args struct { // COMMIT4args
-	Offset Offset4
-	Count Count4
+	Offset uint32
+	Count uint32
 }
 
 
@@ -512,24 +425,24 @@ type COMMIT4resok struct { // COMMIT4resok
 
 type CREATE4args struct { // CREATE4args
 	Objtype Createtype4
-	Objname Component4
+	Objname string
 	Createattrs Fattr4
 }
 
 
 type CREATE4resok struct { // CREATE4resok
 	Cinfo ChangeInfo4
-	Attrset Bitmap4
+	Attrset []uint32
 }
 
 
 type DELEGPURGE4args struct { // DELEGPURGE4args
-	Clientid Clientid4
+	Clientid uint64
 }
 
 
 type DELEGPURGE4res struct { // DELEGPURGE4res
-	Status Nfsstat4
+	Status int32
 }
 
 
@@ -539,12 +452,12 @@ type DELEGRETURN4args struct { // DELEGRETURN4args
 
 
 type DELEGRETURN4res struct { // DELEGRETURN4res
-	Status Nfsstat4
+	Status int32
 }
 
 
 type GETATTR4args struct { // GETATTR4args
-	AttrRequest Bitmap4
+	AttrRequest []uint32
 }
 
 
@@ -559,7 +472,7 @@ type GETFH4resok struct { // GETFH4resok
 
 
 type LINK4args struct { // LINK4args
-	Newname Component4
+	Newname string
 }
 
 
@@ -569,32 +482,32 @@ type LINK4resok struct { // LINK4resok
 
 
 type OpenToLockOwner4 struct { // open_to_lock_owner4
-	OpenSeqid Seqid4
+	OpenSeqid uint32
 	OpenStateid Stateid4
-	LockSeqid Seqid4
+	LockSeqid uint32
 	LockOwner LockOwner4
 }
 
 
 type ExistLockOwner4 struct { // exist_lock_owner4
 	LockStateid Stateid4
-	LockSeqid Seqid4
+	LockSeqid uint32
 }
 
 
 type LOCK4args struct { // LOCK4args
-	Locktype NfsLockType4
+	Locktype int32
 	Reclaim bool
-	Offset Offset4
-	Length Length4
+	Offset uint32
+	Length uint64
 	Locker Locker4
 }
 
 
 type LOCK4denied struct { // LOCK4denied
-	Offset Offset4
-	Length Length4
-	Locktype NfsLockType4
+	Offset uint32
+	Length uint64
+	Locktype int32
 	Owner LockOwner4
 }
 
@@ -605,34 +518,34 @@ type LOCK4resok struct { // LOCK4resok
 
 
 type LOCKT4args struct { // LOCKT4args
-	Locktype NfsLockType4
-	Offset Offset4
-	Length Length4
+	Locktype int32
+	Offset uint32
+	Length uint64
 	Owner LockOwner4
 }
 
 
 type LOCKU4args struct { // LOCKU4args
-	Locktype NfsLockType4
-	Seqid Seqid4
+	Locktype int32
+	Seqid uint32
 	LockStateid Stateid4
-	Offset Offset4
-	Length Length4
+	Offset uint32
+	Length uint64
 }
 
 
 type LOOKUP4args struct { // LOOKUP4args
-	Objname Component4
+	Objname string
 }
 
 
 type LOOKUP4res struct { // LOOKUP4res
-	Status Nfsstat4
+	Status int32
 }
 
 
 type LOOKUPP4res struct { // LOOKUPP4res
-	Status Nfsstat4
+	Status int32
 }
 
 
@@ -642,7 +555,7 @@ type NVERIFY4args struct { // NVERIFY4args
 
 
 type NVERIFY4res struct { // NVERIFY4res
-	Status Nfsstat4
+	Status int32
 }
 
 
@@ -654,12 +567,12 @@ type NfsModifiedLimit4 struct { // nfs_modified_limit4
 
 type OpenClaimDelegateCur4 struct { // open_claim_delegate_cur4
 	DelegateStateid Stateid4
-	File Component4
+	File string
 }
 
 
 type OPEN4args struct { // OPEN4args
-	Seqid Seqid4
+	Seqid uint32
 	ShareAccess uint32
 	ShareDeny uint32
 	Owner OpenOwner4
@@ -687,7 +600,7 @@ type OPEN4resok struct { // OPEN4resok
 	Stateid Stateid4
 	Cinfo ChangeInfo4
 	Rflags uint32
-	Attrset Bitmap4
+	Attrset []uint32
 	Delegation OpenDelegation4
 }
 
@@ -698,13 +611,13 @@ type OPENATTR4args struct { // OPENATTR4args
 
 
 type OPENATTR4res struct { // OPENATTR4res
-	Status Nfsstat4
+	Status int32
 }
 
 
 type OpenConfirm4args struct { // OPEN_CONFIRM4args
 	OpenStateid Stateid4
-	Seqid Seqid4
+	Seqid uint32
 }
 
 
@@ -715,7 +628,7 @@ type OpenConfirm4resok struct { // OPEN_CONFIRM4resok
 
 type OpenDowngrade4args struct { // OPEN_DOWNGRADE4args
 	OpenStateid Stateid4
-	Seqid Seqid4
+	Seqid uint32
 	ShareAccess uint32
 	ShareDeny uint32
 }
@@ -732,24 +645,24 @@ type PUTFH4args struct { // PUTFH4args
 
 
 type PUTFH4res struct { // PUTFH4res
-	Status Nfsstat4
+	Status int32
 }
 
 
 type PUTPUBFH4res struct { // PUTPUBFH4res
-	Status Nfsstat4
+	Status int32
 }
 
 
 type PUTROOTFH4res struct { // PUTROOTFH4res
-	Status Nfsstat4
+	Status int32
 }
 
 
 type READ4args struct { // READ4args
 	Stateid Stateid4
-	Offset Offset4
-	Count Count4
+	Offset uint32
+	Count uint32
 }
 
 
@@ -760,17 +673,17 @@ type READ4resok struct { // READ4resok
 
 
 type READDIR4args struct { // READDIR4args
-	Cookie NfsCookie4
+	Cookie uint64
 	Cookieverf Verifier4
-	Dircount Count4
-	Maxcount Count4
-	AttrRequest Bitmap4
+	Dircount uint32
+	Maxcount uint32
+	AttrRequest []uint32
 }
 
 
 type Entry4 struct { // entry4
-	Cookie NfsCookie4
-	Name Component4
+	Cookie uint64
+	Name string
 	Attrs Fattr4
 	OptNextentry []Entry4
 }
@@ -789,12 +702,12 @@ type READDIR4resok struct { // READDIR4resok
 
 
 type READLINK4resok struct { // READLINK4resok
-	Link Linktext4
+	Link string
 }
 
 
 type REMOVE4args struct { // REMOVE4args
-	Target Component4
+	Target string
 }
 
 
@@ -804,8 +717,8 @@ type REMOVE4resok struct { // REMOVE4resok
 
 
 type RENAME4args struct { // RENAME4args
-	Oldname Component4
-	Newname Component4
+	Oldname string
+	Newname string
 }
 
 
@@ -816,34 +729,34 @@ type RENAME4resok struct { // RENAME4resok
 
 
 type RENEW4args struct { // RENEW4args
-	Clientid Clientid4
+	Clientid uint64
 }
 
 
 type RENEW4res struct { // RENEW4res
-	Status Nfsstat4
+	Status int32
 }
 
 
 type RESTOREFH4res struct { // RESTOREFH4res
-	Status Nfsstat4
+	Status int32
 }
 
 
 type SAVEFH4res struct { // SAVEFH4res
-	Status Nfsstat4
+	Status int32
 }
 
 
 type SECINFO4args struct { // SECINFO4args
-	Name Component4
+	Name string
 }
 
 
 type RpcsecGssInfo struct { // rpcsec_gss_info
-	Oid SecOid4
-	Qop Qop4
-	Service RpcGssSvcT
+	Oid []byte
+	Qop uint32
+	Service int32
 }
 
 
@@ -854,8 +767,8 @@ type SETATTR4args struct { // SETATTR4args
 
 
 type SETATTR4res struct { // SETATTR4res
-	Status Nfsstat4
-	Attrsset Bitmap4
+	Status int32
+	Attrsset []uint32
 }
 
 
@@ -867,19 +780,19 @@ type SETCLIENTID4args struct { // SETCLIENTID4args
 
 
 type SETCLIENTID4resok struct { // SETCLIENTID4resok
-	Clientid Clientid4
+	Clientid uint64
 	SetclientidConfirm Verifier4
 }
 
 
 type SetclientidConfirm4args struct { // SETCLIENTID_CONFIRM4args
-	Clientid Clientid4
+	Clientid uint64
 	SetclientidConfirm Verifier4
 }
 
 
 type SetclientidConfirm4res struct { // SETCLIENTID_CONFIRM4res
-	Status Nfsstat4
+	Status int32
 }
 
 
@@ -889,21 +802,21 @@ type VERIFY4args struct { // VERIFY4args
 
 
 type VERIFY4res struct { // VERIFY4res
-	Status Nfsstat4
+	Status int32
 }
 
 
 type WRITE4args struct { // WRITE4args
 	Stateid Stateid4
-	Offset Offset4
-	Stable StableHow4
+	Offset uint32
+	Stable int32
 	Data []byte
 }
 
 
 type WRITE4resok struct { // WRITE4resok
-	Count Count4
-	Committed StableHow4
+	Count uint32
+	Committed int32
 	Writeverf Verifier4
 }
 
@@ -914,32 +827,32 @@ type ReleaseLockowner4args struct { // RELEASE_LOCKOWNER4args
 
 
 type ReleaseLockowner4res struct { // RELEASE_LOCKOWNER4res
-	Status Nfsstat4
+	Status int32
 }
 
 
 type ILLEGAL4res struct { // ILLEGAL4res
-	Status Nfsstat4
+	Status int32
 }
 
 
 type COMPOUND4args struct { // COMPOUND4args
-	Tag Utf8strCs
+	Tag string
 	Minorversion uint32
 	Argarray []NfsArgop4
 }
 
 
 type COMPOUND4res struct { // COMPOUND4res
-	Status Nfsstat4
-	Tag Utf8strCs
+	Status int32
+	Tag string
 	Resarray []NfsResop4
 }
 
 
 type CbGetattr4args struct { // CB_GETATTR4args
 	Fh NfsFh4
-	AttrRequest Bitmap4
+	AttrRequest []uint32
 }
 
 
@@ -956,17 +869,17 @@ type CbRecall4args struct { // CB_RECALL4args
 
 
 type CbRecall4res struct { // CB_RECALL4res
-	Status Nfsstat4
+	Status int32
 }
 
 
 type CbIllegal4res struct { // CB_ILLEGAL4res
-	Status Nfsstat4
+	Status int32
 }
 
 
 type CbCompound4args struct { // CB_COMPOUND4args
-	Tag Utf8strCs
+	Tag string
 	Minorversion uint32
 	CallbackIdent uint32
 	Argarray []NfsCbArgop4
@@ -974,8 +887,8 @@ type CbCompound4args struct { // CB_COMPOUND4args
 
 
 type CbCompound4res struct { // CB_COMPOUND4res
-	Status Nfsstat4
-	Tag Utf8strCs
+	Status int32
+	Tag string
 	Resarray []NfsCbResop4
 }
 
@@ -984,57 +897,57 @@ type CbCompound4res struct { // CB_COMPOUND4res
 
 
 type Settime4 struct {
-	SetIt TimeHow4 `xdr:"union"`
+	SetIt int32 `xdr:"union"`
 	Time  Nfstime4  `xdr:"unioncase=1"` // Time4
 }
 
 
 type ACCESS4res struct {
-	Status Nfsstat4 `xdr:"union"`
+	Status int32 `xdr:"union"`
 	Resok4  ACCESS4resok  `xdr:"unioncase=0"` // Ok
 }
 
 
 type CLOSE4res struct {
-	Status Nfsstat4 `xdr:"union"`
+	Status int32 `xdr:"union"`
 	OpenStateid  Stateid4  `xdr:"unioncase=0"` // Ok
 }
 
 
 type COMMIT4res struct {
-	Status Nfsstat4 `xdr:"union"`
+	Status int32 `xdr:"union"`
 	Resok4  COMMIT4resok  `xdr:"unioncase=0"` // Ok
 }
 
 
 type Createtype4 struct {
-	Type NfsFtype4 `xdr:"union"`
-	Linkdata  Linktext4  `xdr:"unioncase=5"` // Nf4lnk
+	Type int32 `xdr:"union"`
+	Linkdata  string  `xdr:"unioncase=5"` // Nf4lnk
 	Blkdata  Specdata4  `xdr:"unioncase=3"` // Nf4blk
 	Chrdata  Specdata4  `xdr:"unioncase=4"` // Nf4chr
 }
 
 
 type CREATE4res struct {
-	Status Nfsstat4 `xdr:"union"`
+	Status int32 `xdr:"union"`
 	Resok4  CREATE4resok  `xdr:"unioncase=0"` // Ok
 }
 
 
 type GETATTR4res struct {
-	Status Nfsstat4 `xdr:"union"`
+	Status int32 `xdr:"union"`
 	Resok4  GETATTR4resok  `xdr:"unioncase=0"` // Ok
 }
 
 
 type GETFH4res struct {
-	Status Nfsstat4 `xdr:"union"`
+	Status int32 `xdr:"union"`
 	Resok4  GETFH4resok  `xdr:"unioncase=0"` // Ok
 }
 
 
 type LINK4res struct {
-	Status Nfsstat4 `xdr:"union"`
+	Status int32 `xdr:"union"`
 	Resok4  LINK4resok  `xdr:"unioncase=0"` // Ok
 }
 
@@ -1047,27 +960,27 @@ type Locker4 struct {
 
 
 type LOCK4res struct {
-	Status Nfsstat4 `xdr:"union"`
+	Status int32 `xdr:"union"`
 	Resok4  LOCK4resok  `xdr:"unioncase=0"` // Ok
 	Denied  LOCK4denied  `xdr:"unioncase=10010"` // Denied
 }
 
 
 type LOCKT4res struct {
-	Status Nfsstat4 `xdr:"union"`
+	Status int32 `xdr:"union"`
 	Denied  LOCK4denied  `xdr:"unioncase=10010"` // Denied
 	//    `xdr:"unioncase=0"` // Ok
 }
 
 
 type LOCKU4res struct {
-	Status Nfsstat4 `xdr:"union"`
+	Status int32 `xdr:"union"`
 	LockStateid  Stateid4  `xdr:"unioncase=0"` // Ok
 }
 
 
 type Createhow4 struct {
-	Mode Createmode4 `xdr:"union"`
+	Mode int32 `xdr:"union"`
 	// TODO: codegen failed
 	CreateattrsUnchecked  Fattr4  `xdr:"unioncase=0"` // Unchecked4
 	CreateattrsGuarded  Fattr4  `xdr:"unioncase=1"` // Guarded4
@@ -1076,29 +989,29 @@ type Createhow4 struct {
 
 
 type Openflag4 struct {
-	Opentype Opentype4 `xdr:"union"`
+	Opentype int32 `xdr:"union"`
 	How  Createhow4  `xdr:"unioncase=1"` // Create
 }
 
 
 type NfsSpaceLimit4 struct {
-	Limitby LimitBy4 `xdr:"union"`
+	Limitby int32 `xdr:"union"`
 	Filesize  uint64  `xdr:"unioncase=1"` // Size
 	ModBlocks  NfsModifiedLimit4  `xdr:"unioncase=2"` // Blocks
 }
 
 
 type OpenClaim4 struct {
-	Claim OpenClaimType4 `xdr:"union"`
-	File  Component4  `xdr:"unioncase=0"` // Null
-	DelegateType  OpenDelegationType4  `xdr:"unioncase=1"` // Previous
+	Claim int32 `xdr:"union"`
+	File  string  `xdr:"unioncase=0"` // Null
+	DelegateType  int32  `xdr:"unioncase=1"` // Previous
 	DelegateCurInfo  OpenClaimDelegateCur4  `xdr:"unioncase=2"` // Cur
-	FileDelegatePrev  Component4  `xdr:"unioncase=3"` // Prev
+	FileDelegatePrev  string  `xdr:"unioncase=3"` // Prev
 }
 
 
 type OpenDelegation4 struct {
-	DelegationType OpenDelegationType4 `xdr:"union"`
+	DelegationType int32 `xdr:"union"`
 	//    `xdr:"unioncase=0"` // None
 	Read  OpenReadDelegation4  `xdr:"unioncase=1"` // Read
 	Write  OpenWriteDelegation4  `xdr:"unioncase=2"` // Write
@@ -1106,49 +1019,49 @@ type OpenDelegation4 struct {
 
 
 type OPEN4res struct {
-	Status Nfsstat4 `xdr:"union"`
+	Status int32 `xdr:"union"`
 	Resok4  OPEN4resok  `xdr:"unioncase=0"` // Ok
 }
 
 
 type OpenConfirm4res struct {
-	Status Nfsstat4 `xdr:"union"`
+	Status int32 `xdr:"union"`
 	Resok4  OpenConfirm4resok  `xdr:"unioncase=0"` // Ok
 }
 
 
 type OpenDowngrade4res struct {
-	Status Nfsstat4 `xdr:"union"`
+	Status int32 `xdr:"union"`
 	Resok4  OpenDowngrade4resok  `xdr:"unioncase=0"` // Ok
 }
 
 
 type READ4res struct {
-	Status Nfsstat4 `xdr:"union"`
+	Status int32 `xdr:"union"`
 	Resok4  READ4resok  `xdr:"unioncase=0"` // Ok
 }
 
 
 type READDIR4res struct {
-	Status Nfsstat4 `xdr:"union"`
+	Status int32 `xdr:"union"`
 	Resok4  READDIR4resok  `xdr:"unioncase=0"` // Ok
 }
 
 
 type READLINK4res struct {
-	Status Nfsstat4 `xdr:"union"`
+	Status int32 `xdr:"union"`
 	Resok4  READLINK4resok  `xdr:"unioncase=0"` // Ok
 }
 
 
 type REMOVE4res struct {
-	Status Nfsstat4 `xdr:"union"`
+	Status int32 `xdr:"union"`
 	Resok4  REMOVE4resok  `xdr:"unioncase=0"` // Ok
 }
 
 
 type RENAME4res struct {
-	Status Nfsstat4 `xdr:"union"`
+	Status int32 `xdr:"union"`
 	Resok4  RENAME4resok  `xdr:"unioncase=0"` // Ok
 }
 
@@ -1160,26 +1073,26 @@ type Secinfo4 struct {
 
 
 type SECINFO4res struct {
-	Status Nfsstat4 `xdr:"union"`
+	Status int32 `xdr:"union"`
 	Resok4  SECINFO4resok  `xdr:"unioncase=0"` // Ok
 }
 
 
 type SETCLIENTID4res struct {
-	Status Nfsstat4 `xdr:"union"`
+	Status int32 `xdr:"union"`
 	Resok4  SETCLIENTID4resok  `xdr:"unioncase=0"` // Ok
 	ClientUsing  Clientaddr4  `xdr:"unioncase=10017"` // Inuse
 }
 
 
 type WRITE4res struct {
-	Status Nfsstat4 `xdr:"union"`
+	Status int32 `xdr:"union"`
 	Resok4  WRITE4resok  `xdr:"unioncase=0"` // Ok
 }
 
 
 type NfsArgop4 struct {
-	Argop NfsOpnum4 `xdr:"union"`
+	Argop int32 `xdr:"union"`
 	Opaccess  ACCESS4args  `xdr:"unioncase=3"` // Access
 	Opclose  CLOSE4args  `xdr:"unioncase=4"` // Close
 	Opcommit  COMMIT4args  `xdr:"unioncase=5"` // Commit
@@ -1222,7 +1135,7 @@ type NfsArgop4 struct {
 
 
 type NfsResop4 struct {
-	Resop NfsOpnum4 `xdr:"union"`
+	Resop int32 `xdr:"union"`
 	Opaccess  ACCESS4res  `xdr:"unioncase=3"` // Access
 	Opclose  CLOSE4res  `xdr:"unioncase=4"` // Close
 	Opcommit  COMMIT4res  `xdr:"unioncase=5"` // Commit
@@ -1265,7 +1178,7 @@ type NfsResop4 struct {
 
 
 type CbGetattr4res struct {
-	Status Nfsstat4 `xdr:"union"`
+	Status int32 `xdr:"union"`
 	Resok4  CbGetattr4resok  `xdr:"unioncase=0"` // Ok
 }
 
@@ -1294,22 +1207,22 @@ func Access (access uint32) (NfsArgop4) {
 }
 
 
-func Close (seqid Seqid4, openstateid Stateid4) (NfsArgop4) {
+func Close (seqid uint32, openstateid Stateid4) (NfsArgop4) {
 	return NfsArgop4{Argop:4, Opclose:CLOSE4args{ Seqid:seqid, OpenStateid:openstateid } }
 }
 
 
-func Commit (offset Offset4, count Count4) (NfsArgop4) {
+func Commit (offset uint32, count uint32) (NfsArgop4) {
 	return NfsArgop4{Argop:5, Opcommit:COMMIT4args{ Offset:offset, Count:count } }
 }
 
 
-func Create (objtype Createtype4, objname Component4, createattrs Fattr4) (NfsArgop4) {
+func Create (objtype Createtype4, objname string, createattrs Fattr4) (NfsArgop4) {
 	return NfsArgop4{Argop:6, Opcreate:CREATE4args{ Objtype:objtype, Objname:objname, Createattrs:createattrs } }
 }
 
 
-func Delegpurge (clientid Clientid4) (NfsArgop4) {
+func Delegpurge (clientid uint64) (NfsArgop4) {
 	return NfsArgop4{Argop:7, Opdelegpurge:DELEGPURGE4args{ Clientid:clientid } }
 }
 
@@ -1319,7 +1232,7 @@ func Delegreturn (delegstateid Stateid4) (NfsArgop4) {
 }
 
 
-func Getattr (attrrequest Bitmap4) (NfsArgop4) {
+func Getattr (attrrequest []uint32) (NfsArgop4) {
 	return NfsArgop4{Argop:9, Opgetattr:GETATTR4args{ AttrRequest:attrrequest } }
 }
 
@@ -1329,27 +1242,27 @@ func Getfh () (NfsArgop4) {
 }
 
 
-func Link (newname Component4) (NfsArgop4) {
+func Link (newname string) (NfsArgop4) {
 	return NfsArgop4{Argop:11, Oplink:LINK4args{ Newname:newname } }
 }
 
 
-func Lock (locktype NfsLockType4, reclaim bool, offset Offset4, length Length4, locker Locker4) (NfsArgop4) {
+func Lock (locktype int32, reclaim bool, offset uint32, length uint64, locker Locker4) (NfsArgop4) {
 	return NfsArgop4{Argop:12, Oplock:LOCK4args{ Locktype:locktype, Reclaim:reclaim, Offset:offset, Length:length, Locker:locker } }
 }
 
 
-func Lockt (locktype NfsLockType4, offset Offset4, length Length4, owner LockOwner4) (NfsArgop4) {
+func Lockt (locktype int32, offset uint32, length uint64, owner LockOwner4) (NfsArgop4) {
 	return NfsArgop4{Argop:13, Oplockt:LOCKT4args{ Locktype:locktype, Offset:offset, Length:length, Owner:owner } }
 }
 
 
-func Locku (locktype NfsLockType4, seqid Seqid4, lockstateid Stateid4, offset Offset4, length Length4) (NfsArgop4) {
+func Locku (locktype int32, seqid uint32, lockstateid Stateid4, offset uint32, length uint64) (NfsArgop4) {
 	return NfsArgop4{Argop:14, Oplocku:LOCKU4args{ Locktype:locktype, Seqid:seqid, LockStateid:lockstateid, Offset:offset, Length:length } }
 }
 
 
-func Lookup (objname Component4) (NfsArgop4) {
+func Lookup (objname string) (NfsArgop4) {
 	return NfsArgop4{Argop:15, Oplookup:LOOKUP4args{ Objname:objname } }
 }
 
@@ -1364,7 +1277,7 @@ func Nverify (objattributes Fattr4) (NfsArgop4) {
 }
 
 
-func Open (seqid Seqid4, shareaccess uint32, sharedeny uint32, owner OpenOwner4, openhow Openflag4, claim OpenClaim4) (NfsArgop4) {
+func Open (seqid uint32, shareaccess uint32, sharedeny uint32, owner OpenOwner4, openhow Openflag4, claim OpenClaim4) (NfsArgop4) {
 	return NfsArgop4{Argop:18, Opopen:OPEN4args{ Seqid:seqid, ShareAccess:shareaccess, ShareDeny:sharedeny, Owner:owner, Openhow:openhow, Claim:claim } }
 }
 
@@ -1374,12 +1287,12 @@ func Openattr (createdir bool) (NfsArgop4) {
 }
 
 // TODO: codegen failed
-func OpenConfirm (openstateid Stateid4, seqid Seqid4) (NfsArgop4) {
+func OpenConfirm (openstateid Stateid4, seqid uint32) (NfsArgop4) {
 	return NfsArgop4{Argop:20, OpopenConfirm:OpenConfirm4args{ OpenStateid:openstateid, Seqid:seqid } }
 }
 
 
-func OpenDowngrade (openstateid Stateid4, seqid Seqid4, shareaccess uint32, sharedeny uint32) (NfsArgop4) {
+func OpenDowngrade (openstateid Stateid4, seqid uint32, shareaccess uint32, sharedeny uint32) (NfsArgop4) {
 	return NfsArgop4{Argop:21, OpopenDowngrade:OpenDowngrade4args{ OpenStateid:openstateid, Seqid:seqid, ShareAccess:shareaccess, ShareDeny:sharedeny } }
 }
 
@@ -1399,12 +1312,12 @@ func Putrootfh () (NfsArgop4) {
 }
 
 
-func Read (stateid Stateid4, offset Offset4, count Count4) (NfsArgop4) {
+func Read (stateid Stateid4, offset uint32, count uint32) (NfsArgop4) {
 	return NfsArgop4{Argop:25, Opread:READ4args{ Stateid:stateid, Offset:offset, Count:count } }
 }
 
 
-func Readdir (cookie NfsCookie4, cookieverf Verifier4, dircount Count4, maxcount Count4, attrrequest Bitmap4) (NfsArgop4) {
+func Readdir (cookie uint64, cookieverf Verifier4, dircount uint32, maxcount uint32, attrrequest []uint32) (NfsArgop4) {
 	return NfsArgop4{Argop:26, Opreaddir:READDIR4args{ Cookie:cookie, Cookieverf:cookieverf, Dircount:dircount, Maxcount:maxcount, AttrRequest:attrrequest } }
 }
 
@@ -1414,17 +1327,17 @@ func Readlink () (NfsArgop4) {
 }
 
 
-func Remove (target Component4) (NfsArgop4) {
+func Remove (target string) (NfsArgop4) {
 	return NfsArgop4{Argop:28, Opremove:REMOVE4args{ Target:target } }
 }
 
 
-func Rename (oldname Component4, newname Component4) (NfsArgop4) {
+func Rename (oldname string, newname string) (NfsArgop4) {
 	return NfsArgop4{Argop:29, Oprename:RENAME4args{ Oldname:oldname, Newname:newname } }
 }
 
 
-func Renew (clientid Clientid4) (NfsArgop4) {
+func Renew (clientid uint64) (NfsArgop4) {
 	return NfsArgop4{Argop:30, Oprenew:RENEW4args{ Clientid:clientid } }
 }
 
@@ -1439,7 +1352,7 @@ func Savefh () (NfsArgop4) {
 }
 
 
-func Secinfo (name Component4) (NfsArgop4) {
+func Secinfo (name string) (NfsArgop4) {
 	return NfsArgop4{Argop:33, Opsecinfo:SECINFO4args{ Name:name } }
 }
 
@@ -1454,7 +1367,7 @@ func Setclientid (client NfsClientID4, callback CbClient4, callbackident uint32)
 }
 
 
-func SetclientidConfirm (clientid Clientid4, setclientidconfirm Verifier4) (NfsArgop4) {
+func SetclientidConfirm (clientid uint64, setclientidconfirm Verifier4) (NfsArgop4) {
 	return NfsArgop4{Argop:36, OpsetclientidConfirm:SetclientidConfirm4args{ Clientid:clientid, SetclientidConfirm:setclientidconfirm } }
 }
 
@@ -1464,7 +1377,7 @@ func Verify (objattributes Fattr4) (NfsArgop4) {
 }
 
 
-func Write (stateid Stateid4, offset Offset4, stable StableHow4, data []byte) (NfsArgop4) {
+func Write (stateid Stateid4, offset uint32, stable int32, data []byte) (NfsArgop4) {
 	return NfsArgop4{Argop:38, Opwrite:WRITE4args{ Stateid:stateid, Offset:offset, Stable:stable, Data:data } }
 }
 

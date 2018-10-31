@@ -1,6 +1,6 @@
 package v40
 
-func GetStatus(res *NfsResop4) (Nfsstat4) {
+func GetStatus(res *NfsResop4) (int32) {
     if res == nil {
 		return NFS4ERR_INVAL
 	}
@@ -59,4 +59,8 @@ func GetPermAttrList(perm uint) (l []byte) {
     return l
 }
 
-
+func FhFromString(h string) (fh NfsFh4) {
+    s := []byte(h)
+    copy(fh[:], s[:NFS4_FHSIZE])
+    return fh
+}

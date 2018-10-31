@@ -19,7 +19,7 @@ type CompoundMessage struct {
 type V40 struct {
 	RpcClient      *rpc.Client
 	Auth           rpc.Auth
-	ClientId       Clientid4
+	ClientId       uint64
 	Verifier       Verifier4
 	Id             string
 	Seq            uint32
@@ -46,7 +46,7 @@ func (cli *V40) GetClientID() (NfsClientID4) {
 	// TODO: ???
 	return NfsClientID4{
 		Verifier: cli.Verifier,
-		ID: []byte(cli.Id)}
+		ID: cli.Id}
 }
 
 func (cli *V40) GetCallBack() (CbClient4) {

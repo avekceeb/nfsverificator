@@ -47,7 +47,7 @@ var _ = Describe("Functional", func() {
         It("Get Same FH", func() {
             r := c.ExpectOK(Putfh(rootFH), Getfh())
             Expect(r.Resarray[1].Opgetfh.Resok4.Object).To(Equal(rootFH))
-            c.ExpectErr(NFS4ERR_BADHANDLE, Putfh([]byte("bad")), Getfh())
+            c.ExpectErr(NFS4ERR_BADHANDLE, Putfh(FhFromString("bad")), Getfh())
         })
 
         It("Lookup empty", func() {
@@ -61,10 +61,37 @@ var _ = Describe("Functional", func() {
 		It("Look dots", func() {
 			dir := RandString(8)
 			fh := c.CreateDir(rootFH, dir, 0777)
-			c.ExpectErr(NFS4ERR_BADNAME, Putfh(fh), Lookup(Component4(".")))
-			c.ExpectErr(NFS4ERR_BADNAME, Putfh(fh), Lookup(Component4("..")))
-			c.ExpectOK(Putfh(rootFH), Remove(Component4(dir)))
+			c.ExpectErr(NFS4ERR_BADNAME, Putfh(fh), Lookup("."))
+			c.ExpectErr(NFS4ERR_BADNAME, Putfh(fh), Lookup(".."))
+			c.ExpectOK(Putfh(rootFH), Remove(dir))
 		})
+
+        It("PyNFS::LOOK9", func() {
+            dir := (RandString(16))
+            dirFH := c.CreateDir(rootFH, dir, 0777)
+            dirFH2 := c.CreateDir(dirFH, dir, 0777)
+            c.SetAttr(dirFH2, 0000)
+			r := c.Client.Compound(Putfh(rootFH), Lookup(dir), Lookup(dir))
+            if c.Uid == 0 {
+				Expect(r.Status).To(Equal(NFS4_OK))
+            } else {
+				Expect(r.Status).To(Equal(NFS4ERR_ACCESS))
+            }
+        })
+
+        It("PyNFS::LOCK1", func() {
+            fileName := RandString(8)
+            newFH, stateId := c.OpenSimple(rootFH, fileName)
+            c.LockSimple(
+				newFH,
+                WRITE_LT, 0, 10, stateId)
+            c.ExpectErr(
+				NFS4ERR_DENIED,
+				Putfh(newFH),
+				Lockt(WRITE_LT, 0, 10, LockOwner4{
+					Clientid: c.Client.ClientId, Owner: "Other Owner"}))
+        })
+
 
 	})
 })

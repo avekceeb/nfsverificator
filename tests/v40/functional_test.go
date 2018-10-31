@@ -73,9 +73,9 @@ var _ = Describe("Functional", func() {
             c.SetAttr(dirFH2, 0000)
 			r := c.Client.Compound(Putfh(rootFH), Lookup(dir), Lookup(dir))
             if c.Uid == 0 {
-				Expect(r.Status).To(Equal(NFS4_OK))
+				Expect(r.Status).To(BeOK)
             } else {
-				Expect(r.Status).To(Equal(NFS4ERR_ACCESS))
+				Expect(r.Status).To(Equal(int32(NFS4ERR_ACCESS)))
             }
         })
 

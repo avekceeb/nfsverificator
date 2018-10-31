@@ -5,6 +5,7 @@ import (
 	"github.com/avekceeb/nfsverificator/xdr"
 	"math/rand"
 	"errors"
+	"fmt"
 )
 
 type ArgArrayT struct {
@@ -76,13 +77,16 @@ func (cli *V40) Compound(args ...NfsArgop4) (reply COMPOUND4res) {
 	// We are not interested in pushing this error information further
 	// so this is the place where all rpc errors stop
 	if nil != err {
+		fmt.Printf("%s", err.Error())
 		return COMPOUND4res{Status:10049}
 	}
 	if nil == res {
+		fmt.Printf("%s", "Result is nil")
 		return COMPOUND4res{Status:10049}
 	}
 	err = xdr.Read(res, &reply)
 	if nil != err {
+		fmt.Printf("%s", err.Error())
 		return COMPOUND4res{Status:10049}
 	}
 	return reply

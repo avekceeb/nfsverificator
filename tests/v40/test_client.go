@@ -12,6 +12,10 @@ type V40Test struct {
 	Gid uint32
 }
 
+var (
+	BeOK = Equal(int32(NFS4_OK))
+)
+
 func NewV40Test(srvHost string, srvPort int, authHost string, uid uint32, gid uint32, cid string) (*V40Test) {
 	tc := V40Test{Uid:uid, Gid:gid}
 	tc.Client = NewV40(srvHost, srvPort, authHost, uid, gid, cid)
@@ -21,7 +25,7 @@ func NewV40Test(srvHost string, srvPort int, authHost string, uid uint32, gid ui
 func (t *V40Test) ExpectOK(args ...NfsArgop4) (reply COMPOUND4res) {
 	reply = t.Client.Compound(args...)
     Expect(reply).ToNot(BeNil())
-    Expect(reply.Status).To(Equal(NFS4_OK))
+    Expect(reply.Status).To(BeOK)
     // TODO: this probably is not needed
     //for _, k := range reply.Resarray {
     //    Expect(GetStatus(&k)).To(Equal(NFS4_OK))
@@ -33,7 +37,7 @@ func (t *V40Test) ExpectOK(args ...NfsArgop4) (reply COMPOUND4res) {
 func (t *V40Test) ExpectErr(stat int32, args ...NfsArgop4) (res COMPOUND4res) {
 	res = t.Client.Compound(args...)
     Expect(res).ToNot(BeNil())
-    Expect(res.Status).To(Equal(stat))
+    Expect(res.Status).To(Equal(int32(stat)))
 	return res
 }
 
@@ -102,11 +106,12 @@ func (t *V40Test) OpenSimple(fh NfsFh4, name string) (newFH NfsFh4, stateId Stat
 	stateId = r.Resarray[1].Opopen.Resok4.Stateid
 	t.Client.Seq += 1
 	r = t.ExpectOK(Putfh(newFH), OpenConfirm(stateId, t.Client.Seq))
-	stateId = r.Resarray[1].Opopen.Resok4.Stateid
+	stateId = r.Resarray[1].OpopenConfirm.Resok4.OpenStateid
+	t.Client.Seq += 1
 	return newFH, stateId
 }
 
-func (t *V40Test) LockSimple(fh NfsFh4, ltype int32, off uint32, length uint64, stateId Stateid4) (COMPOUND4res) {
+func (t *V40Test) LockSimple(fh NfsFh4, ltype int32, off uint64, length uint64, stateId Stateid4) (COMPOUND4res) {
 		return t.ExpectOK(
 			Putfh(fh),
 			Lock(
@@ -119,14 +124,14 @@ func (t *V40Test) LockSimple(fh NfsFh4, ltype int32, off uint32, length uint64, 
 					OpenOwner: OpenToLockOwner4{
 						OpenSeqid: t.Client.Seq,
 						OpenStateid: stateId,
-						LockSeqid:0,
+						LockSeqid: 0,
 						LockOwner:LockOwner4{
 							Clientid: t.Client.ClientId,
 							Owner: t.Client.Id}}}))
 }
 
 
-func (t *V40Test) BuildLockt(ltype int32, off uint32, length uint64, owner string) (LOCKT4args) {
+func (t *V40Test) BuildLockt(ltype int32, off uint64, length uint64, owner string) (LOCKT4args) {
     return LOCKT4args{
 		Locktype:ltype,
 		Offset:off,

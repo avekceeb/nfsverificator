@@ -291,7 +291,7 @@ const (
 
 // Most of the typedefs are replaced by basic go types
 
-type NfsFh4 [NFS4_FHSIZE]byte
+type NfsFh4 []byte
 type Verifier4 [NFS4_VERIFIER_SIZE]byte // verifier4
 type Fattr4Fsid Fsid4 // fattr4_fsid
 type Fattr4Acl []Nfsace4 // fattr4_acl
@@ -498,14 +498,14 @@ type ExistLockOwner4 struct { // exist_lock_owner4
 type LOCK4args struct { // LOCK4args
 	Locktype int32
 	Reclaim bool
-	Offset uint32
+	Offset uint64
 	Length uint64
 	Locker Locker4
 }
 
 
 type LOCK4denied struct { // LOCK4denied
-	Offset uint32
+	Offset uint64
 	Length uint64
 	Locktype int32
 	Owner LockOwner4
@@ -519,7 +519,7 @@ type LOCK4resok struct { // LOCK4resok
 
 type LOCKT4args struct { // LOCKT4args
 	Locktype int32
-	Offset uint32
+	Offset uint64
 	Length uint64
 	Owner LockOwner4
 }
@@ -529,7 +529,7 @@ type LOCKU4args struct { // LOCKU4args
 	Locktype int32
 	Seqid uint32
 	LockStateid Stateid4
-	Offset uint32
+	Offset uint64
 	Length uint64
 }
 
@@ -1247,17 +1247,17 @@ func Link (newname string) (NfsArgop4) {
 }
 
 
-func Lock (locktype int32, reclaim bool, offset uint32, length uint64, locker Locker4) (NfsArgop4) {
+func Lock (locktype int32, reclaim bool, offset uint64, length uint64, locker Locker4) (NfsArgop4) {
 	return NfsArgop4{Argop:12, Oplock:LOCK4args{ Locktype:locktype, Reclaim:reclaim, Offset:offset, Length:length, Locker:locker } }
 }
 
 
-func Lockt (locktype int32, offset uint32, length uint64, owner LockOwner4) (NfsArgop4) {
+func Lockt (locktype int32, offset uint64, length uint64, owner LockOwner4) (NfsArgop4) {
 	return NfsArgop4{Argop:13, Oplockt:LOCKT4args{ Locktype:locktype, Offset:offset, Length:length, Owner:owner } }
 }
 
 
-func Locku (locktype int32, seqid uint32, lockstateid Stateid4, offset uint32, length uint64) (NfsArgop4) {
+func Locku (locktype int32, seqid uint32, lockstateid Stateid4, offset uint64, length uint64) (NfsArgop4) {
 	return NfsArgop4{Argop:14, Oplocku:LOCKU4args{ Locktype:locktype, Seqid:seqid, LockStateid:lockstateid, Offset:offset, Length:length } }
 }
 
@@ -1390,5 +1390,4 @@ func ReleaseLockowner (lockowner LockOwner4) (NfsArgop4) {
 func Illegal () (NfsArgop4) {
 	return NfsArgop4{Argop:10044 }
 }
-
 

@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"math/rand"
+	"time"
 )
 
 type TestConfig struct {
@@ -13,6 +14,11 @@ type TestConfig struct {
 	Exports    []string  `json:"exports"`
 	ExportsRO  []string  `json:"exports-ro"`
 }
+
+func init () {
+    rand.Seed(time.Now().Unix())
+}
+
 
 func ReadConfig(configPath string) (config TestConfig) {
 	jsonFile, err := os.Open(configPath)
@@ -23,6 +29,10 @@ func ReadConfig(configPath string) (config TestConfig) {
 	bytes, _ := ioutil.ReadAll(jsonFile)
 	json.Unmarshal(bytes, &config)
 	return config
+}
+
+func RandInt(min int, max int) int {
+    return rand.Intn(max - min) + min
 }
 
 const letters = "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz"

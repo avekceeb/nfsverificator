@@ -13,3 +13,7 @@ local:
 stress:
 	ginkgo -v -focus "Stress.*Multi" ./tests/v40
 	#ginkgo -v -focus "Stress.*Multi" ./tests/v40 -- -config $(PWD)/local.json
+
+test41:
+	ginkgo -v ./tests/v41 -- -config $(PWD)/local.json
+

@@ -1,4 +1,4 @@
-package v40tests
+package v41tests
 
 import (
     . "github.com/onsi/ginkgo"
@@ -25,5 +25,6 @@ func init() {
 
 func TestSanity(t *testing.T) {
     RegisterFailHandler(Fail)
-    RunSpecs(t, "NFSv4.0")
+    RunSpecs(t, "NFSv4.1")
 }
+

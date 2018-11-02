@@ -1,5 +1,6 @@
 package v40
 
+/*
 func GetStatus(res *NfsResop4) (int32) {
     if res == nil {
 		return NFS4ERR_INVAL
@@ -40,6 +41,7 @@ func GetStatus(res *NfsResop4) (int32) {
         return NFS4ERR_INVAL
     }
 }
+*/
 
 func GetBitmap(bits ...int) ([]uint32) {
     b := []uint32{0,0}

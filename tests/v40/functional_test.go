@@ -71,6 +71,7 @@ var _ = Describe("Functional", func() {
             dirFH := c.CreateDir(rootFH, dir, 0777)
             dirFH2 := c.CreateDir(dirFH, dir, 0777)
             c.SetAttr(dirFH2, 0000)
+			c.Comp(0)
 			r := c.Client.Compound(Putfh(rootFH), Lookup(dir), Lookup(dir))
             if c.Uid == 0 {
 				Expect(r.Status).To(BeOK)

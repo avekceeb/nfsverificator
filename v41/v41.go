@@ -1,5 +1,14 @@
 package v41
 
+/*
+TODO: ???
+in CallbackSecParms4:
+	AUTH_NONE = 1
+	AUTH_SYS = 2
+	RPCSEC_GSS = 3
+ */
+
+
 const (
 	// Enums:
 	NF4REG = 1 // NF4REG
@@ -2053,8 +2062,8 @@ type WRITE4res struct {
 type CallbackSecParms4 struct {
 	CbSecflavor uint32 `xdr:"union"`
 	//    `xdr:"unioncase=AUTH_NONE"` // None
-	CbspSysCred  AuthsysParms  `xdr:"unioncase=AUTH_SYS"` // Sys
-	CbspGssHandles  GssCbHandles4  `xdr:"unioncase=RPCSEC_GSS"` // Gss
+	CbspSysCred  AuthsysParms  `xdr:"unioncase=1"` // Sys
+	CbspGssHandles  GssCbHandles4  `xdr:"unioncase=2"` // Gss
 }
 
 

@@ -18,9 +18,57 @@ const (
 
 var (
 	BeOK = Equal(int32(NFS4_OK))
+	DefProtect = StateProtect4A{SpaHow:0}
+	DefImpl = []NfsImplID4{{
+				NiiDate:Nfstime4{Seconds: 0, Nseconds: 0},
+				NiiDomain:"kernel.org",
+				NiiName:"Linux"}}
+	DefExchgFlags = MakeUint32Flags(
+		EXCHGID4_FLAG_BIND_PRINC_STATEID,
+		EXCHGID4_FLAG_SUPP_MOVED_MIGR,
+		EXCHGID4_FLAG_SUPP_MOVED_REFER)
+	DefCsFlags = MakeUint32Flags(
+		CREATE_SESSION4_FLAG_PERSIST,
+		CREATE_SESSION4_FLAG_CONN_BACK_CHAN)
+	DefChannelAttrs = ChannelAttrs4{
+		CaHeaderpadsize:0,
+		CaMaxrequestsize:1049620,
+		CaMaxresponsesize:1049480,
+		CaMaxresponsesizeCached:3428,
+		CaMaxoperations:8,
+		CaMaxrequests:64,
+	}
 )
 
 ////////// helpers ///////////////
+
+func CheckFlag(flags uint32, flag int) bool {
+	return 1 == (flags & uint32(flag))
+}
+
+func BytesToUint32(b []byte) uint32 {
+	r := uint32(0)
+	for i:=range b {
+		r += uint32(b[i])
+	}
+	return r
+}
+
+func MakeGetAttrFlags(f ...int) uint32 {
+	r := uint32(0)
+	for i:=range f{
+		r |= (1<<uint32(f[i])) // ??
+	}
+	return r
+}
+
+func MakeUint32Flags(f ...int) uint32 {
+	r := uint32(0)
+	for i:=range f {
+		r |= uint32(f[i])
+	}
+	return r
+}
 
 func Uint64ToVerifier(r uint64) (Verifier4) {
 	return Verifier4{
@@ -32,7 +80,7 @@ func Uint64ToVerifier(r uint64) (Verifier4) {
 }
 
 func LastRes(res *([]NfsResop4)) (*NfsResop4) {
-	return &((*res)[:1][0])
+	return &((*res)[len(*res)-1])
 }
 
 //////////////////////////////////
@@ -169,48 +217,45 @@ func (t *NFSv41Client) Fail(stat int32, args ...NfsArgop4) ([]NfsResop4) {
 }
 
 
-func (cli *NFSv41Client) Connect() {
-	var eiflags uint32
-	eiflags = 0x00000103
+func (cli *NFSv41Client) ExchangeId() {
 	r := cli.Pass(ExchangeId(
-			ClientOwner4{
-				CoOwnerid: util.RandString(14),
-				CoVerifier: Verifier4{}},
-			eiflags,
-			StateProtect4A{SpaHow:0},
-			[]NfsImplID4{{
-				NiiDate:Nfstime4{Seconds: 0, Nseconds: 0},
-				NiiDomain:"kernel.org",
-				NiiName:"Linux"}}))
+		ClientOwner4{
+			CoOwnerid: util.RandString(14),
+			CoVerifier: Verifier4{}},
+		DefExchgFlags,
+		DefProtect,
+		DefImpl))
 	ei := LastRes(&r).OpexchangeID.EirResok4
 	cli.ClientId = ei.EirClientid
 	cli.Seq = ei.EirSequenceid
+}
+
+func (cli *NFSv41Client) CreateSession() {
 	s := cli.Pass(CreateSession(
 		cli.ClientId,
 		cli.Seq,
-		3,
-		ChannelAttrs4{
-			CaHeaderpadsize:0,
-			CaMaxrequestsize:1049620,
-			CaMaxresponsesize:1049480,
-			CaMaxresponsesizeCached:3428,
-			CaMaxoperations:8,
-			CaMaxrequests:64,
-		},
-		ChannelAttrs4{
-			CaHeaderpadsize:0,
-			CaMaxrequestsize:4096,
-			CaMaxresponsesize:4096,
-			CaMaxresponsesizeCached:0,
-			CaMaxoperations:2,
-			CaMaxrequests:1,
-		},
+		DefCsFlags,
+		DefChannelAttrs,
+		DefChannelAttrs,
 		0x40000000,
 		[]CallbackSecParms4{{
 			CbSecflavor:1,
 			CbspSysCred:cli.AuthSys}}))
 	cli.Sid = LastRes(&s).OpcreateSession.CsrResok4.CsrSessionid
 	cli.Pass(
-		Sequence(cli.Sid,cli.Seq,0,0,false),
+		Sequence(cli.Sid, cli.Seq, 0, 0, false),
 		ReclaimComplete(false))
+	//cli.Seq++
+	//cli.Pass(
+	//	Sequence(cli.Sid, cli.Seq, 0, 0, false),
+	//	Putrootfh(),
+	//	SecinfoNoName(0))
+	//cli.Seq++
+	//l := cli.Pass(
+	//	Sequence(cli.Sid, cli.Seq, 0, 0, false),
+	//	Putrootfh(),
+	//	Getfh(),
+	//	Getattr([]uint32{MakeGetAttrFlags(FATTR4_LEASE_TIME)}))
+	//leaseTime := LastRes(&l).Opgetattr.Resok4.ObjAttributes.AttrVals
+	//fmt.Println(BytesToUint32(leaseTime))
 }

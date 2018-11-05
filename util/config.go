@@ -16,6 +16,7 @@ type TestConfig struct {
 }
 
 func init () {
+	// TODO: save and replay seed
     rand.Seed(time.Now().Unix())
 }
 

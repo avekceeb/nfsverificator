@@ -13,7 +13,7 @@ import (
 	"sync/atomic"
 	"time"
 	"github.com/avekceeb/nfsverificator/util"
-	"github.com/vmware/go-nfs-client/nfs/xdr"
+	"github.com/avekceeb/nfsverificator/xdr"
 	"os"
 	"syscall"
 	"os/user"

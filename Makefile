@@ -8,7 +8,7 @@ dryrun:
 	ginkgo -v -dryRun ./tests/v40 -- -runtime=dryrun
 
 local:
-	ginkgo -v -focus "Look dots" ./tests/v40 -- -config $(PWD)/local.json
+	ginkgo -v -skip "Stress" ./tests/v40 -- -config $(PWD)/local.json
 
 stress:
 	ginkgo -v -focus "Stress.*Multi" ./tests/v40

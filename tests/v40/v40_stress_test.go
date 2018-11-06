@@ -1,8 +1,7 @@
 package v40tests
 
 import (
-    . "github.com/onsi/ginkgo"
-	//. "github.com/onsi/gomega"
+	. "github.com/onsi/ginkgo"
 	. "github.com/avekceeb/nfsverificator/v40"
 	. "github.com/avekceeb/nfsverificator/util"
 	"fmt"
@@ -38,18 +37,18 @@ func Task(j int) {
 
 func BackgroundClient() (error) {
 	for i:=0;i<1000;i++ {
-		c := NewV40Test(Config.ServerHost,
+		c := NewNFSv40Client(Config.ServerHost,
 			Config.ServerPort,
 			RandString(8) + ".flash.mob", 0, 0, RandString(8))
-		r := c.Client.Compound(
-			Setclientid(c.Client.GetClientID(), c.Client.GetCallBack(), 1))
-		c.Client.ClientId = r.Resarray[0].Opsetclientid.Resok4.Clientid
-		c.Client.Verifier = r.Resarray[0].Opsetclientid.Resok4.SetclientidConfirm
-		c.Client.Compound(
-			SetclientidConfirm(c.Client.ClientId, c.Client.Verifier))
+		r, _ := c.Compound(
+			Setclientid(c.GetClientID(), c.GetCallBack(), 1))
+		c.ClientId = r.Resarray[0].Opsetclientid.Resok4.Clientid
+		c.Verifier = r.Resarray[0].Opsetclientid.Resok4.SetclientidConfirm
+		c.Compound(
+			SetclientidConfirm(c.ClientId, c.Verifier))
 		var e error
 		for x := 0; x < 3; x++ {
-			e = c.Client.Null()
+			e = c.Null()
 			if nil != e {
 				return e
 			}

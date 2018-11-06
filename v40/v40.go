@@ -1,5 +1,18 @@
 package v40
 
+// TODO: to GSS or smth
+// Added manually (Dmitry A.)
+type AuthsysParms struct {
+	Stamp       uint32
+	Machinename string
+	Uid         uint32
+	Gid         uint32
+	GidLen      uint32
+	// this was producing extra 4-byte field
+	//Gids        uint32
+}
+
+
 const (
 	// Enums:
 	NF4REG = 1 // NF4REG

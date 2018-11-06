@@ -47,3 +47,31 @@ func RandString(n int) string {
     return string(b)
 }
 
+func CheckFlag(flags uint32, flag int) bool {
+	return 1 == (flags & uint32(flag))
+}
+
+func BytesToUint32(b []byte) uint32 {
+	r := uint32(0)
+	for i:=range b {
+		r += uint32(b[i])
+	}
+	return r
+}
+
+func MakeGetAttrFlags(f ...int) uint32 {
+	r := uint32(0)
+	for i:=range f{
+		r |= (1<<uint32(f[i])) // ??
+	}
+	return r
+}
+
+func MakeUint32Flags(f ...int) uint32 {
+	r := uint32(0)
+	for i:=range f {
+		r |= uint32(f[i])
+	}
+	return r
+}
+

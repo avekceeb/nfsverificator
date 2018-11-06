@@ -7,6 +7,19 @@ in CallbackSecParms4:
 	AUTH_SYS = 2
 	RPCSEC_GSS = 3
  */
+// TODO: to GSS or smth
+// Added manually (Dmitry A.)
+type AuthsysParms struct {
+	Stamp       uint32
+	Machinename string
+	Uid         uint32
+	Gid         uint32
+	GidLen      uint32
+	// this was producing extra 4-byte field
+	//Gids        uint32
+}
+
+
 
 
 const (
@@ -566,16 +579,6 @@ type CbRecallableObjAvail4args CbRecallAny4args // CB_RECALLABLE_OBJ_AVAIL4args
 
 
 
-// Added manually (Dmitry A.)
-type AuthsysParms struct {
-	Stamp       uint32
-	Machinename string
-	Uid         uint32
-	Gid         uint32
-	GidLen      uint32
-	// this was producing extra 4-byte field
-	//Gids        uint32
-}
 const NFS4_PROGRAM = 100003
 const NFS_V4 = 4
 const NFSPROC4_COMPOUND = 1

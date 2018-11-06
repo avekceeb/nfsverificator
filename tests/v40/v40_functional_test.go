@@ -8,7 +8,7 @@ import (
 )
 
 var (
-    c *V40Test
+    c *NFSv40Client
     export string
     rootFH NfsFh4
 )
@@ -16,12 +16,12 @@ var (
 var _ = Describe("Functional", func() {
 
 	BeforeSuite(func() {
-		c = NewV40Test(Config.ServerHost, Config.ServerPort, RandString(8)+".fake.net", 0, 0, RandString(8))
+		c = NewNFSv40Client(Config.ServerHost, Config.ServerPort, RandString(8)+".fake.net", 0, 0, RandString(8))
 		// Set Client ID
-		r := c.ExpectOK(Setclientid(c.Client.GetClientID(), c.Client.GetCallBack(), 1))
-		c.Client.ClientId = r.Resarray[0].Opsetclientid.Resok4.Clientid
-		c.Client.Verifier = r.Resarray[0].Opsetclientid.Resok4.SetclientidConfirm
-		c.ExpectOK(SetclientidConfirm(c.Client.ClientId, c.Client.Verifier))
+		r := c.ExpectOK(Setclientid(c.GetClientID(), c.GetCallBack(), 1))
+		c.ClientId = r[0].Opsetclientid.Resok4.Clientid
+		c.Verifier = r[0].Opsetclientid.Resok4.SetclientidConfirm
+		c.ExpectOK(SetclientidConfirm(c.ClientId, c.Verifier))
 		Expect(len(Config.Exports) > 0).To(BeTrue())
 		export = Config.Exports[0]
 		// Get exported dir
@@ -29,7 +29,7 @@ var _ = Describe("Functional", func() {
 	})
 
 	AfterSuite(func() {
-		c.Client.Close()
+		c.Close()
 	})
 
 	Context("Basic", func() {
@@ -46,7 +46,7 @@ var _ = Describe("Functional", func() {
 
         It("Get Same FH", func() {
             r := c.ExpectOK(Putfh(rootFH), Getfh())
-            Expect(r.Resarray[1].Opgetfh.Resok4.Object).To(Equal(rootFH))
+            Expect(r[1].Opgetfh.Resok4.Object).To(Equal(rootFH))
             c.ExpectErr(NFS4ERR_BADHANDLE, Putfh(FhFromString("bad")), Getfh())
         })
 
@@ -71,8 +71,8 @@ var _ = Describe("Functional", func() {
             dirFH := c.CreateDir(rootFH, dir, 0777)
             dirFH2 := c.CreateDir(dirFH, dir, 0777)
             c.SetAttr(dirFH2, 0000)
-			r := c.Client.Compound(Putfh(rootFH), Lookup(dir), Lookup(dir))
-            if c.Uid == 0 {
+			r, _ := c.Compound(Putfh(rootFH), Lookup(dir), Lookup(dir))
+            if c.AuthSys.Uid == 0 {
 				Expect(r.Status).To(BeOK)
             } else {
 				Expect(r.Status).To(Equal(int32(NFS4ERR_ACCESS)))
@@ -89,7 +89,7 @@ var _ = Describe("Functional", func() {
 				NFS4ERR_DENIED,
 				Putfh(newFH),
 				Lockt(WRITE_LT, 0, 10, LockOwner4{
-					Clientid: c.Client.ClientId, Owner: "Other Owner"}))
+					Clientid: c.ClientId, Owner: "Other Owner"}))
         })
 
 

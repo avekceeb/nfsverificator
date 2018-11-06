@@ -9,7 +9,7 @@ import (
 	"math/rand"
 	"errors"
 	"fmt"
-	"github.com/avekceeb/nfsverificator/util"
+	. "github.com/avekceeb/nfsverificator/util"
 )
 
 const (
@@ -41,34 +41,6 @@ var (
 )
 
 ////////// helpers ///////////////
-
-func CheckFlag(flags uint32, flag int) bool {
-	return 1 == (flags & uint32(flag))
-}
-
-func BytesToUint32(b []byte) uint32 {
-	r := uint32(0)
-	for i:=range b {
-		r += uint32(b[i])
-	}
-	return r
-}
-
-func MakeGetAttrFlags(f ...int) uint32 {
-	r := uint32(0)
-	for i:=range f{
-		r |= (1<<uint32(f[i])) // ??
-	}
-	return r
-}
-
-func MakeUint32Flags(f ...int) uint32 {
-	r := uint32(0)
-	for i:=range f {
-		r |= uint32(f[i])
-	}
-	return r
-}
 
 func Uint64ToVerifier(r uint64) (Verifier4) {
 	return Verifier4{
@@ -123,7 +95,7 @@ func (cli *NFSv41Client) GetClientID() (NfsClientID4) {
 func (cli *NFSv41Client) GetCallBack() (CbClient4) {
 	// TODO: real client, calculate address
 	return CbClient4{
-		CbProgram:0x40000000,
+		CbProgram: 0x40000000,
 		CbLocation: Netaddr4{NaRNetid:"tcp", NaRAddr:"127.0.0.1.139.249"}}
 }
 
@@ -199,20 +171,20 @@ func NewNFSv41Client(srvHost string, srvPort int, authHost string, uid uint32, g
 
 func (t *NFSv41Client) Pass(args ...NfsArgop4) ([]NfsResop4) {
 	reply, err := t.Compound(args...)
-    Expect(err).To(BeNil())
-    Expect(reply.Status).To(BeOK)
-    // TODO: ???
-    //for _, k := range reply.Resarray {
-    //    Expect(GetStatus(&k)).To(Equal(NFS4_OK))
-    //}
+	Expect(err).To(BeNil())
+	Expect(reply.Status).To(BeOK)
+	// TODO: ???
+	//for _, k := range reply.Resarray {
+	//    Expect(GetStatus(&k)).To(Equal(NFS4_OK))
+	//}
 	return reply.Resarray
 }
 
 
 func (t *NFSv41Client) Fail(stat int32, args ...NfsArgop4) ([]NfsResop4) {
 	res, err := t.Compound(args...)
-    Expect(err).To(BeNil())
-    Expect(res.Status).To(Equal(int32(stat)))
+	Expect(err).To(BeNil())
+	Expect(res.Status).To(Equal(int32(stat)))
 	return res.Resarray
 }
 
@@ -220,7 +192,7 @@ func (t *NFSv41Client) Fail(stat int32, args ...NfsArgop4) ([]NfsResop4) {
 func (cli *NFSv41Client) ExchangeId() {
 	r := cli.Pass(ExchangeId(
 		ClientOwner4{
-			CoOwnerid: util.RandString(14),
+			CoOwnerid: RandString(14),
 			CoVerifier: Verifier4{}},
 		DefExchgFlags,
 		DefProtect,

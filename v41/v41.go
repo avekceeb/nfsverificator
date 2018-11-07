@@ -7,6 +7,7 @@ in CallbackSecParms4:
 	AUTH_SYS = 2
 	RPCSEC_GSS = 3
  */
+
 // TODO: to GSS or smth
 // Added manually (Dmitry A.)
 type AuthsysParms struct {
@@ -18,9 +19,6 @@ type AuthsysParms struct {
 	// this was producing extra 4-byte field
 	//Gids        uint32
 }
-
-
-
 
 const (
 	/* Enums: */

@@ -73,6 +73,19 @@ type message struct {
 	Body    interface{}
 }
 
+func maybe41CallBack(r *io.ReadSeeker) (bool) {
+	mtype, _ := xdr.ReadUint32(*r)
+	fmt.Println("mtype = ", mtype)
+	if 0 != mtype {
+		return false
+	}
+	rpcVer, _ := xdr.ReadUint32(*r)
+	fmt.Println("rpcVer = ", rpcVer)
+	prog, _ := xdr.ReadUint32(*r)
+	fmt.Printf("prog = %x\n", prog)
+	return true
+}
+
 func (c *Client) Call(call interface{}) (io.ReadSeeker, error) {
 	retries := 1
 
@@ -91,6 +104,7 @@ retry:
 		return nil, err
 	}
 
+listen:
 	res, err := c.recv()
 	if err != nil {
 		return nil, err
@@ -102,7 +116,14 @@ retry:
 	}
 
 	if xid != msg.Xid {
-		return nil, fmt.Errorf("xid did not match, expected: %x, received: %x", msg.Xid, xid)
+		// TODO: this is temporary workaround
+		if maybe41CallBack(&res) {
+			goto listen
+		} else {
+			return nil, fmt.Errorf(
+				"xid did not match, expected: %x, received: %x",
+				msg.Xid, xid)
+		}
 	}
 
 	mtype, err := xdr.ReadUint32(res)

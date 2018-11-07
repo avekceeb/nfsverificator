@@ -89,19 +89,6 @@ func (cli *NFSv41Client) Close() {
 	cli.RpcClient.Close()
 }
 
-func (cli *NFSv41Client) GetClientID() (NfsClientID4) {
-	return NfsClientID4{
-		Verifier: cli.Verifier,
-		ID: cli.Id}
-}
-
-func (cli *NFSv41Client) GetCallBack() (CbClient4) {
-	// TODO: real client, calculate address
-	return CbClient4{
-		CbProgram: 0x40000000,
-		CbLocation: Netaddr4{NaRNetid:"tcp", NaRAddr:"127.0.0.1.139.249"}}
-}
-
 func (cli *NFSv41Client) Compound(args ...NfsArgop4) (reply COMPOUND4res, err error) {
 	res, err := cli.RpcClient.Call(CompoundMessage{
 		Head: rpc.Header{
@@ -218,23 +205,52 @@ func (cli *NFSv41Client) ExchangeId() {
 }
 
 func (cli *NFSv41Client) CreateSession() {
+/*
+As previously stated, CREATE_SESSION can be sent with or without a
+preceding SEQUENCE operation.  Even if a SEQUENCE precedes
+CREATE_SESSION, the server MUST maintain the CREATE_SESSION reply
+cache, which is separate from the reply cache for the session
+associated with a SEQUENCE.  If CREATE_SESSION was originally sent by
+itself, the client MAY send a retry of the CREATE_SESSION operation
+within a COMPOUND preceded by a SEQUENCE.  If CREATE_SESSION was
+originally sent in a COMPOUND that started with a SEQUENCE, then the
+client SHOULD send a retry in a COMPOUND that starts with a SEQUENCE
+that has the same session ID as the SEQUENCE of the original request.
+However, the client MAY send a retry in a COMPOUND that either has no
+preceding SEQUENCE, or has a preceding SEQUENCE that refers to a
+different session than the original CREATE_SESSION.  This might be
+necessary if the client sends a CREATE_SESSION in a COMPOUND preceded
+by a SEQUENCE with session ID X, and session X no longer exists.
+Regardless, any retry of CREATE_SESSION, with or without a preceding
+SEQUENCE, MUST use the same value of csa_sequence as the original.
+*/
 	s := cli.Pass(CreateSession(
 		cli.ClientId,
 		cli.Seq,
 		DefCsFlags,
 		DefChannelAttrs,
 		DefChannelAttrs,
-		0x40000000,
+		0x40000000, // CallBack Program
 		[]CallbackSecParms4{{
 			CbSecflavor:1,
 			CbspSysCred:cli.AuthSys}}))
 	cli.Sid = LastRes(&s).OpcreateSession.CsrResok4.CsrSessionid
 	// TODO: now only fore channel
 	cli.ForeChAttr = LastRes(&s).OpcreateSession.CsrResok4.CsrForeChanAttrs
+/*
+   Once the session is created, the first SEQUENCE or CB_SEQUENCE
+   received on a slot MUST have a sequence ID equal to 1; if not, the
+   replier MUST return NFS4ERR_SEQ_MISORDERED.
+
+	BTW, Linux disregards this
+
+ */
+
+	cli.Seq = 1
+
 	cli.Pass(
 		Sequence(cli.Sid, cli.Seq, 0, 0, false),
 		ReclaimComplete(false))
-	//cli.Seq++
 	//cli.Pass(
 	//	Sequence(cli.Sid, cli.Seq, 0, 0, false),
 	//	Putrootfh(),

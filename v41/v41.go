@@ -1371,6 +1371,29 @@ type ExchangeID4resok struct { // EXCHANGE_ID4resok
 	EirServerImplID []NfsImplID4
 }
 
+/*
+ca_maxrequestsize:
+
+The maximum size of a COMPOUND or CB_COMPOUND request that will
+be sent.  This size represents the XDR encoded size of the
+request, including the RPC headers (including security flavor
+credentials and verifiers) but excludes any RPC transport
+framing headers.
+If a requester sends a
+request that exceeds ca_maxrequestsize, the error
+NFS4ERR_REQ_TOO_BIG will be returned
+
+ca_maxoperations:
+
+The maximum number of operations the replier will accept in a
+COMPOUND or CB_COMPOUND.  For the backchannel, the server MUST
+NOT change the value the client offers.  For the fore channel,
+the server MAY change the requested value.  After the session
+is created, if a requester sends a COMPOUND or CB_COMPOUND with
+more operations than ca_maxoperations, the replier MUST return
+NFS4ERR_TOO_MANY_OPS.
+
+*/
 
 type ChannelAttrs4 struct { // channel_attrs4
 	CaHeaderpadsize uint32

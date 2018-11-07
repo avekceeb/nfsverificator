@@ -1,15 +1,14 @@
 package v41tests
 
 import (
-	"github.com/avekceeb/nfsverificator/rpc"
-	"github.com/avekceeb/nfsverificator/xdr"
-	. "github.com/avekceeb/nfsverificator/v41"
-    //. "github.com/onsi/ginkgo"
-    . "github.com/onsi/gomega"
 	"math/rand"
 	"errors"
 	"fmt"
+	"github.com/avekceeb/nfsverificator/rpc"
+	"github.com/avekceeb/nfsverificator/xdr"
+	. "github.com/avekceeb/nfsverificator/v41"
 	. "github.com/avekceeb/nfsverificator/util"
+    . "github.com/onsi/gomega"
 )
 
 const (
@@ -74,7 +73,11 @@ type NFSv41Client struct {
 	Seq            uint32 // TODO ??
 	Verifier       Verifier4
 	Id             string
+	// TODO: per server / per session
+	// Now only one session
 	Sid            Sessionid4
+	// Now only fore channel
+	ForeChAttr         ChannelAttrs4
 }
 
 func (cli *NFSv41Client) MockReboot() {
@@ -127,6 +130,18 @@ func (cli *NFSv41Client) Compound(args ...NfsArgop4) (reply COMPOUND4res, err er
 		fmt.Printf("%s", err.Error())
 		return COMPOUND4res{Status:Nfs4ClientError}, err
 	}
+	if args[0].Argop == OP_SEQUENCE {
+		if reply.Resarray[0].Opsequence.SrStatus == int32(NFS4_OK) {
+			cli.Seq++
+		}
+	}
+
+	//for _, a := range args {
+    //    if a.Argop == OP_SEQUENCE { // TODO: other ops?
+		//	cli.Seq++
+		//	break
+    //    }
+    //}
 	return reply, nil
 }
 
@@ -214,6 +229,8 @@ func (cli *NFSv41Client) CreateSession() {
 			CbSecflavor:1,
 			CbspSysCred:cli.AuthSys}}))
 	cli.Sid = LastRes(&s).OpcreateSession.CsrResok4.CsrSessionid
+	// TODO: now only fore channel
+	cli.ForeChAttr = LastRes(&s).OpcreateSession.CsrResok4.CsrForeChanAttrs
 	cli.Pass(
 		Sequence(cli.Sid, cli.Seq, 0, 0, false),
 		ReclaimComplete(false))

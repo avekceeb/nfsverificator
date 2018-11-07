@@ -1,19 +1,24 @@
+.PHONY: v40 v41
 
-GINKGO_OPTS :=
+# Defaults:
+skip := Stress|Slow
+focus :=
+config := $(PWD)/config.json
 
-test:
-	ginkgo -v $(GINKGO_OPTS) -focus "${FOCUS}" -skip "Stress" ./tests/v40
+opts := -config $(config)
+gopts := --trace -skip "$(skip)" -focus "$(focus)"
 
-dryrun:
-	ginkgo -v -dryRun ./tests/v40 -- -runtime=dryrun
+# -v
 
-local:
-	ginkgo -v -skip "Stress" ./tests/v40 -- -config $(PWD)/local.json
+all:
+	ginkgo $(gopts) ./tests/... -- $(opts)
+
+v40:
+	ginkgo $(gopts) ./tests/v40 -- $(opts)
+
+v41:
+	ginkgo $(gopts) ./tests/v41 -- $(opts)
 
 stress:
-	ginkgo -v -focus "Stress.*Multi" ./tests/v40
-	#ginkgo -v -focus "Stress.*Multi" ./tests/v40 -- -config $(PWD)/local.json
-
-test41:
-	ginkgo -v ./tests/v41 -- -config $(PWD)/local.json
+	ginkgo -v -focus "Stress.*Multi" ./tests/v40 -- $(opts)
 

@@ -44,9 +44,13 @@ var _ = Describe("Functional", func() {
 		//	//}
 		//})
 
-        It("Get Same FH", func() {
+        It("Same FH (PyNFS::PUTFH1r)", func() {
             r := c.ExpectOK(Putfh(rootFH), Getfh())
             Expect(r[1].Opgetfh.Resok4.Object).To(Equal(rootFH))
+
+        })
+
+        It("Bad FH (PyNFS::PUTFH2)", func() {
             c.ExpectErr(NFS4ERR_BADHANDLE, Putfh(FhFromString("bad")), Getfh())
         })
 
@@ -54,7 +58,7 @@ var _ = Describe("Functional", func() {
             c.ExpectErr(NFS4ERR_INVAL, Putfh(rootFH), Lookup(""))
         })
 
-        It("No fh", func() {
+        It("No fh (PyNFS::GF9)", func() {
             c.ExpectErr(NFS4ERR_NOFILEHANDLE, Getfh())
         })
 

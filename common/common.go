@@ -29,7 +29,7 @@ func RandString(n int) string {
 }
 
 func CheckFlag(flags uint32, flag int) bool {
-	return 1 == (flags & uint32(flag))
+	return 0 != (flags & uint32(flag))
 }
 
 func BytesToUint32(b []byte) uint32 {

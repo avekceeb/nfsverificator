@@ -26,6 +26,8 @@ type Server struct {
 	ExportsRW  []string  `json:"exports-rw"`
 	ExportsRO  []string  `json:"exports-ro"`
 	RebootCmd  string    `json:"reboot-cmd"`
+	// these would be obtained by requests to server itself
+	//LeaseTime  int ?? (in client)
 }
 
 type TestConfig struct {

@@ -77,7 +77,15 @@ type NFSv41Client struct {
 	// Now only one session
 	Sid            Sessionid4
 	// Now only fore channel
-	ForeChAttr         ChannelAttrs4
+	ForeChAttr     ChannelAttrs4
+	Server         string
+	// TODO:
+	LeaseTime      uint32
+	DL             bool
+	XT             bool
+	LU             bool
+	MD             bool
+	RD             bool
 }
 
 func (cli *NFSv41Client) MockReboot() {
@@ -168,6 +176,7 @@ func NewNFSv41Client(srvHost string, srvPort int, authHost string, uid uint32, g
 	}
 	client.Id = cid
 	client.MockReboot()
+	client.Server = srvHost
 	return &client
 }
 
@@ -205,7 +214,7 @@ func (cli *NFSv41Client) ExchangeId() {
 }
 
 func (cli *NFSv41Client) CreateSession() {
-/*
+	/*
 As previously stated, CREATE_SESSION can be sent with or without a
 preceding SEQUENCE operation.  Even if a SEQUENCE precedes
 CREATE_SESSION, the server MUST maintain the CREATE_SESSION reply
@@ -237,7 +246,7 @@ SEQUENCE, MUST use the same value of csa_sequence as the original.
 	cli.Sid = LastRes(&s).OpcreateSession.CsrResok4.CsrSessionid
 	// TODO: now only fore channel
 	cli.ForeChAttr = LastRes(&s).OpcreateSession.CsrResok4.CsrForeChanAttrs
-/*
+	/*
    Once the session is created, the first SEQUENCE or CB_SEQUENCE
    received on a slot MUST have a sequence ID equal to 1; if not, the
    replier MUST return NFS4ERR_SEQ_MISORDERED.
@@ -251,16 +260,32 @@ SEQUENCE, MUST use the same value of csa_sequence as the original.
 	cli.Pass(
 		Sequence(cli.Sid, cli.Seq, 0, 0, false),
 		ReclaimComplete(false))
-	//cli.Pass(
-	//	Sequence(cli.Sid, cli.Seq, 0, 0, false),
-	//	Putrootfh(),
-	//	SecinfoNoName(0))
-	//cli.Seq++
-	//l := cli.Pass(
-	//	Sequence(cli.Sid, cli.Seq, 0, 0, false),
-	//	Putrootfh(),
-	//	Getfh(),
-	//	Getattr([]uint32{MakeGetAttrFlags(FATTR4_LEASE_TIME)}))
-	//leaseTime := LastRes(&l).Opgetattr.Resok4.ObjAttributes.AttrVals
-	//fmt.Println(BytesToUint32(leaseTime))
+}
+
+func (cli *NFSv41Client) GetSomeAttr() {
+	cli.Pass(
+		Sequence(cli.Sid, cli.Seq, 0, 0, false),
+		Putrootfh(),
+		SecinfoNoName(0))
+	// TODO
+	l := cli.Pass(
+		Sequence(cli.Sid, cli.Seq, 0, 0, false),
+		Putrootfh(),
+		Getfh(),
+		Getattr([]uint32{MakeGetAttrFlags(FATTR4_LEASE_TIME)}))
+	cli.LeaseTime = BytesToUint32(LastRes(&l).Opgetattr.Resok4.ObjAttributes.AttrVals)
+	r := cli.Pass(
+		Sequence(cli.Sid, cli.Seq, 0, 0, false),
+		Putrootfh(),
+		Access(MakeUint32Flags(ACCESS4_DELETE, ACCESS4_EXTEND, ACCESS4_LOOKUP, ACCESS4_MODIFY,
+			ACCESS4_READ, ACCESS4_EXECUTE)),
+	)
+	access := LastRes(&r).Opaccess.Resok4.Access
+	cli.DL = CheckFlag(access, ACCESS4_DELETE)
+	cli.XT = CheckFlag(access, ACCESS4_EXTEND)
+	cli.LU = CheckFlag(access, ACCESS4_LOOKUP)
+	cli.MD = CheckFlag(access, ACCESS4_MODIFY)
+	cli.RD = CheckFlag(access, ACCESS4_READ)
+	// TODO : execute ???
+
 }

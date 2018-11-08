@@ -21,6 +21,7 @@ var _ = Describe("Functional", func() {
 				RandString(8) + ".fake.net", 0, 0, RandString(8))
 		c.ExchangeId()
 		c.CreateSession()
+		c.GetSomeAttr()
 	})
 
 	AfterSuite(func() {
@@ -162,17 +163,11 @@ var _ = Describe("Functional", func() {
 	Context("Slow", func() {
 
 		It("CreateSession Timeout (PyNFS::EID9)", func() {
-			l := c.Pass(
-				Sequence(c.Sid, c.Seq, 0, 0, false),
-				Putrootfh(),
-				Getfh(),
-				Getattr([]uint32{MakeGetAttrFlags(FATTR4_LEASE_TIME)}))
-			leaseTime := BytesToUint32(
-				LastRes(&l).Opgetattr.Resok4.ObjAttributes.AttrVals)
 			cliStale := NewNFSv41Client(
 				Config.GetHost(), Config.GetPort(),
 					RandString(8) + ".fake.net", 0, 0, RandString(8))
-			time.Sleep(time.Second * time.Duration(leaseTime + 5))
+
+			time.Sleep(time.Second * time.Duration(c.LeaseTime + 5))
 
 			cliStale.Fail(
 				NFS4ERR_STALE_CLIENTID,

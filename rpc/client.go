@@ -12,7 +12,7 @@ import (
 	"net"
 	"sync/atomic"
 	"time"
-	"github.com/avekceeb/nfsverificator/util"
+	. "github.com/avekceeb/nfsverificator/common"
 	"github.com/avekceeb/nfsverificator/xdr"
 	"os"
 	"syscall"
@@ -75,14 +75,13 @@ type message struct {
 
 func maybe41CallBack(r *io.ReadSeeker) (bool) {
 	mtype, _ := xdr.ReadUint32(*r)
-	fmt.Println("mtype = ", mtype)
 	if 0 != mtype {
 		return false
 	}
-	rpcVer, _ := xdr.ReadUint32(*r)
-	fmt.Println("rpcVer = ", rpcVer)
-	prog, _ := xdr.ReadUint32(*r)
-	fmt.Printf("prog = %x\n", prog)
+	// rpcVersion
+	xdr.ReadUint32(*r)
+	// program
+	xdr.ReadUint32(*r)
 	return true
 }
 
@@ -165,7 +164,7 @@ listen:
 		case Success:
 			return res, nil
 		case ProgUnavail:
-			return nil, fmt.Errorf("rpc: PROG_UNAVAIL - server does not recognize the program number")
+			return nil, fmt.Errorf("%s", "rpc: PROG_UNAVAIL - server does not recognize the program number")
 		case ProgMismatch:
 			return nil, fmt.Errorf("rpc: PROG_MISMATCH - program version does not exist on the server")
 		case ProcUnavail:
@@ -173,7 +172,7 @@ listen:
 		case GarbageArgs:
 			// emulate Linux behaviour for GARBAGE_ARGS
 			if retries > 0 {
-				util.Debugf("Retrying on GARBAGE_ARGS per linux semantics")
+				Debugf("Retrying on GARBAGE_ARGS per linux semantics")
 				retries--
 				goto retry
 			}
@@ -236,7 +235,7 @@ func DialService(addr string, port int) (*Client, error) {
 			}
 
 			raddr := fmt.Sprintf("%s:%d", addr, port)
-			util.Debugf("Connecting to %s", raddr)
+			Debugf("Connecting to %s", raddr)
 
 			client, err = DialTCP("tcp", ldr, raddr)
 			if err == nil {
@@ -250,10 +249,10 @@ func DialService(addr string, port int) (*Client, error) {
 			return nil, err
 		}
 
-		util.Debugf("using random port %d -> %d", p, port)
+		Debugf("using random port %d -> %d", p, port)
 	} else {
 		raddr := fmt.Sprintf("%s:%d", addr, port)
-		util.Debugf("Connecting to %s from unprivileged port", raddr)
+		Debugf("Connecting to %s from unprivileged port", raddr)
 
 		client, err = DialTCP("tcp", ldr, raddr)
 		if err != nil {

@@ -4,7 +4,7 @@ import (
     . "github.com/onsi/ginkgo"
     . "github.com/onsi/gomega"
 	. "github.com/avekceeb/nfsverificator/v40"
-	. "github.com/avekceeb/nfsverificator/util"
+	. "github.com/avekceeb/nfsverificator/common"
 )
 
 var (
@@ -16,14 +16,13 @@ var (
 var _ = Describe("Functional", func() {
 
 	BeforeSuite(func() {
-		c = NewNFSv40Client(Config.ServerHost, Config.ServerPort, RandString(8)+".fake.net", 0, 0, RandString(8))
+		c = NewNFSv40Client(Config.GetHost(), Config.GetPort(), RandString(8)+".fake.net", 0, 0, RandString(8))
 		// Set Client ID
-		r := c.ExpectOK(Setclientid(c.GetClientID(), c.GetCallBack(), 1))
+		r := c.Pass(Setclientid(c.GetClientID(), c.GetCallBack(), 1))
 		c.ClientId = r[0].Opsetclientid.Resok4.Clientid
 		c.Verifier = r[0].Opsetclientid.Resok4.SetclientidConfirm
-		c.ExpectOK(SetclientidConfirm(c.ClientId, c.Verifier))
-		Expect(len(Config.Exports) > 0).To(BeTrue())
-		export = Config.Exports[0]
+		c.Pass(SetclientidConfirm(c.ClientId, c.Verifier))
+		export = Config.GetRWExport()
 		// Get exported dir
 		rootFH = c.GetExportFH(export)
 	})
@@ -45,29 +44,29 @@ var _ = Describe("Functional", func() {
 		//})
 
         It("Same FH (PyNFS::PUTFH1r)", func() {
-            r := c.ExpectOK(Putfh(rootFH), Getfh())
+            r := c.Pass(Putfh(rootFH), Getfh())
             Expect(r[1].Opgetfh.Resok4.Object).To(Equal(rootFH))
 
         })
 
         It("Bad FH (PyNFS::PUTFH2)", func() {
-            c.ExpectErr(NFS4ERR_BADHANDLE, Putfh(FhFromString("bad")), Getfh())
+            c.Fail(NFS4ERR_BADHANDLE, Putfh(FhFromString("bad")), Getfh())
         })
 
         It("Lookup empty", func() {
-            c.ExpectErr(NFS4ERR_INVAL, Putfh(rootFH), Lookup(""))
+            c.Fail(NFS4ERR_INVAL, Putfh(rootFH), Lookup(""))
         })
 
         It("No fh (PyNFS::GF9)", func() {
-            c.ExpectErr(NFS4ERR_NOFILEHANDLE, Getfh())
+            c.Fail(NFS4ERR_NOFILEHANDLE, Getfh())
         })
 
 		It("Look dots", func() {
 			dir := RandString(8)
 			fh := c.CreateDir(rootFH, dir, 0777)
-			c.ExpectErr(NFS4ERR_BADNAME, Putfh(fh), Lookup("."))
-			c.ExpectErr(NFS4ERR_BADNAME, Putfh(fh), Lookup(".."))
-			c.ExpectOK(Putfh(rootFH), Remove(dir))
+			c.Fail(NFS4ERR_BADNAME, Putfh(fh), Lookup("."))
+			c.Fail(NFS4ERR_BADNAME, Putfh(fh), Lookup(".."))
+			c.Pass(Putfh(rootFH), Remove(dir))
 		})
 
         It("PyNFS::LOOK9", func() {
@@ -89,7 +88,7 @@ var _ = Describe("Functional", func() {
             c.LockSimple(
 				newFH,
                 WRITE_LT, 0, 10, stateId)
-            c.ExpectErr(
+            c.Fail(
 				NFS4ERR_DENIED,
 				Putfh(newFH),
 				Lockt(WRITE_LT, 0, 10, LockOwner4{

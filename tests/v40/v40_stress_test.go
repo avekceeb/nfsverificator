@@ -3,7 +3,7 @@ package v40tests
 import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/avekceeb/nfsverificator/v40"
-	. "github.com/avekceeb/nfsverificator/util"
+	. "github.com/avekceeb/nfsverificator/common"
 	"fmt"
 	"time"
 	"errors"
@@ -37,8 +37,8 @@ func Task(j int) {
 
 func BackgroundClient() (error) {
 	for i:=0;i<1000;i++ {
-		c := NewNFSv40Client(Config.ServerHost,
-			Config.ServerPort,
+		c := NewNFSv40Client(Config.GetHost(),
+			Config.GetPort(),
 			RandString(8) + ".flash.mob", 0, 0, RandString(8))
 		r, _ := c.Compound(
 			Setclientid(c.GetClientID(), c.GetCallBack(), 1))

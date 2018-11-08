@@ -1,6 +1,19 @@
 {
-	"server-host": "172.16.0.110",
-	"server-port": 2049,
-	"exports"    : ["/mnt"],
-	"exports-ro" : ["/usr/bin"]
+	"default-server" : "localhost",
+	"servers" : {
+		"localhost" : {
+				"host" : "localhost",
+				"port" : 2049,
+				"exports-rw" : ["/export/share1"],
+				"exports-ro" : [],
+                "reboot-cmd" : ""
+		},
+		"example" : {
+				"host" : "127.0.0.1",
+				"port" : 2049,
+				"exports-rw" : [],
+				"exports-ro" : [],
+                "reboot-cmd" : ""
+		}
+	}
 }

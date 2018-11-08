@@ -4,7 +4,7 @@ import (
 	. "github.com/onsi/gomega"
     . "github.com/onsi/ginkgo"
  	. "github.com/avekceeb/nfsverificator/v41"
-	. "github.com/avekceeb/nfsverificator/util"
+	. "github.com/avekceeb/nfsverificator/common"
 	"time"
 	"math/rand"
 )
@@ -17,7 +17,7 @@ var _ = Describe("Functional", func() {
 
 	BeforeSuite(func() {
 		c = NewNFSv41Client(
-			Config.ServerHost, Config.ServerPort,
+			Config.GetHost(), Config.GetPort(),
 				RandString(8) + ".fake.net", 0, 0, RandString(8))
 		c.ExchangeId()
 		c.CreateSession()
@@ -170,7 +170,7 @@ var _ = Describe("Functional", func() {
 			leaseTime := BytesToUint32(
 				LastRes(&l).Opgetattr.Resok4.ObjAttributes.AttrVals)
 			cliStale := NewNFSv41Client(
-				Config.ServerHost, Config.ServerPort,
+				Config.GetHost(), Config.GetPort(),
 					RandString(8) + ".fake.net", 0, 0, RandString(8))
 			time.Sleep(time.Second * time.Duration(leaseTime + 5))
 

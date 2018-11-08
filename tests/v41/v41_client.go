@@ -7,7 +7,7 @@ import (
 	"github.com/avekceeb/nfsverificator/rpc"
 	"github.com/avekceeb/nfsverificator/xdr"
 	. "github.com/avekceeb/nfsverificator/v41"
-	. "github.com/avekceeb/nfsverificator/util"
+	. "github.com/avekceeb/nfsverificator/common"
     . "github.com/onsi/gomega"
 )
 

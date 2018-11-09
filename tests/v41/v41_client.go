@@ -9,6 +9,7 @@ import (
 	. "github.com/avekceeb/nfsverificator/v41"
 	. "github.com/avekceeb/nfsverificator/common"
     . "github.com/onsi/gomega"
+	"strings"
 )
 
 const (
@@ -180,6 +181,8 @@ func NewNFSv41Client(srvHost string, srvPort int, authHost string, uid uint32, g
 	return &client
 }
 
+// HELPERS FOR CHECK COMPOUND STATUS //
+
 func (t *NFSv41Client) Pass(args ...NfsArgop4) ([]NfsResop4) {
 	reply, err := t.Compound(args...)
 	Expect(err).To(BeNil())
@@ -197,6 +200,23 @@ func (t *NFSv41Client) Fail(stat int32, args ...NfsArgop4) ([]NfsResop4) {
 	Expect(err).To(BeNil())
 	Expect(res.Status).To(Equal(int32(stat)))
 	return res.Resarray
+}
+
+// HELPERS TO EXECUTE REQUESTS //
+
+/// TODO: this could not handle unexported 'holes' in path
+func (t *NFSv41Client) LookupFromRoot(path string) (fh NfsFh4) {
+    ret := t.Pass(
+		Sequence(t.Sid, t.Seq, 0, 0, false), Putrootfh(), Getfh())
+    fh = LastRes(&ret).Opgetfh.Resok4.Object
+    for _, k := range strings.Split(path, "/") {
+        if "" == k {
+            continue
+        }
+        ret = t.Pass(Sequence(t.Sid, t.Seq, 0, 0, false), Putfh(fh), Lookup(k), Getfh())
+        fh = LastRes(&ret).Opgetfh.Resok4.Object
+    }
+    return fh
 }
 
 
@@ -288,4 +308,73 @@ func (cli *NFSv41Client) GetSomeAttr() {
 	cli.RD = CheckFlag(access, ACCESS4_READ)
 	// TODO : execute ???
 
+}
+
+// HELPERS FOR BUILDING NfsArgop4 FOR COMPOUNDS //
+
+func (t *NFSv41Client) SequenceArgs() NfsArgop4 {
+	return Sequence(t.Sid, t.Seq, 0, 0, false)
+}
+
+/*
+OPEN4resok::Rflags
+
+o  OPEN4_RESULT_CONFIRM is deprecated and MUST NOT be returned by an
+  NFSv4.1 server.
+
+o  OPEN4_RESULT_LOCKTYPE_POSIX indicates that the server's byte-range
+  locking behavior supports the complete set of POSIX locking
+  techniques [24].  From this, the client can choose to manage byte-
+  range locking state in a way to handle a mismatch of byte-range
+  locking management.
+
+o  OPEN4_RESULT_PRESERVE_UNLINKED indicates that the server will
+  preserve the open file if the client (or any other client) removes
+  the file as long as it is open.  Furthermore, the server promises
+  to preserve the file through the grace period after server
+  restart, thereby giving the client the opportunity to reclaim its
+  open.
+
+o  OPEN4_RESULT_MAY_NOTIFY_LOCK indicates that the server may attempt
+  CB_NOTIFY_LOCK callbacks for locks on this file.  This flag is a
+  hint only, and may be safely ignored by the client.
+ */
+func (t *NFSv41Client) OpenArgs() NfsArgop4 {
+	return Open(t.Seq,
+			OPEN4_SHARE_ACCESS_WRITE,
+			OPEN4_SHARE_DENY_NONE,
+            OpenOwner4{
+				Clientid: t.ClientId,
+				Owner: t.Id},
+            Openflag4{
+				Opentype: OPEN4_CREATE,
+                How: Createhow4{
+					Mode: UNCHECKED4,
+                    CreateattrsUnchecked: Fattr4{
+						Attrmask: GetBitmap(FATTR4_MODE),
+						AttrVals: GetPermAttrList(0644)},
+                },
+			},
+            OpenClaim4{Claim:CLAIM_NULL, File: RandString(12)})
+}
+
+func (t *NFSv41Client) LockArgs(stateId Stateid4) NfsArgop4 {
+		return Lock(
+				WRITE_LT,
+				false, /*reclaim*/
+				0, /*offset*/
+				0xffffffffffffffff, /*length*/
+				Locker4{
+					NewLockOwner:true,
+					OpenOwner: OpenToLockOwner4{
+						OpenSeqid: t.Seq,
+						OpenStateid: stateId,
+						LockSeqid: 0,
+						LockOwner:LockOwner4{
+							Clientid: t.ClientId,
+							Owner: t.Id}}})
+}
+
+func (t *NFSv41Client) LocktArgs(owner string) (NfsArgop4) {
+    return Lockt(WRITE_LT, 0, 0xffffffffffffffff, LockOwner4{Clientid: t.ClientId, Owner: owner})
 }

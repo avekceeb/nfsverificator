@@ -11,6 +11,9 @@ import (
 
 var (
 	c *NFSv41Client
+	rootFH NfsFh4
+	// TODO: list of fh to clean up
+	// get name by fh and remove in AfterSuite
 )
 
 var _ = Describe("Functional", func() {
@@ -22,6 +25,7 @@ var _ = Describe("Functional", func() {
 		c.ExchangeId()
 		c.CreateSession()
 		c.GetSomeAttr()
+		rootFH = c.LookupFromRoot(Config.GetRWExport())
 	})
 
 	AfterSuite(func() {
@@ -99,7 +103,7 @@ var _ = Describe("Functional", func() {
 		It("PyNFS::LOOK4", func(){
 			c.Fail(
 				NFS4ERR_NAMETOOLONG,
-				Sequence(c.Sid, c.Seq, 0, 0, false),
+				c.SequenceArgs(),
 				Putrootfh(),
 				Lookup(RandString(4000)))
 		})
@@ -142,25 +146,102 @@ var _ = Describe("Functional", func() {
 		})
 
 		It("TODO: NFS4ERR_RETRY_UNCACHED_REP", func(){
+			savedSeq := c.Seq
 			c.Fail(
 				NFS4ERR_RETRY_UNCACHED_REP,
 				Sequence(c.Sid, c.Seq - 1, 0, 0, false),
 				Putrootfh(), Access(MakeUint32Flags(ACCESS4_READ)))
+			// Sequence ops result is OK, but compound status is fail, so
+			c.Seq = savedSeq
 		})
 
-		//It("TODO: NFS4ERR_SEQ_FALSE_RETRY", func(){
-		//	c.Pass(
-		//		Sequence(c.Sid, c.Seq, 0, 0, true),
-		//		Putrootfh(), Getfh())
-		//	c.Fail(
-		//		NFS4ERR_SEQ_FALSE_RETRY,
-		//		Sequence(c.Sid, c.Seq - 1, 0, 0, false),
-		//		Putrootfh(), Getfh())
-		//})
+		It("TODO: Write", func(){
+			r := c.Pass(c.SequenceArgs(), Putfh(rootFH), c.OpenArgs(), Getfh())
+			resok := r[2].Opopen.Resok4
+			stateId := resok.Stateid
+			// TODO: CB_NOTIFY_LOCK
+			//if ! CheckFlag(resok.Rflags, OPEN4_RESULT_MAY_NOTIFY_LOCK) {
+			//	fmt.Println("TODO: Server does not Notify Lock Call")
+			//}
+			fh := LastRes(&r).Opgetfh.Resok4.Object
+			r = c.Pass(
+				c.SequenceArgs(), Putfh(fh),
+				Write(stateId, 0, UNSTABLE4, []byte(RandString(128))))
+		})
+
+		It("TODO: NFS4ERR_SEQ_FALSE_RETRY", func(){
+			c.Pass(
+				Sequence(c.Sid, c.Seq, 0, 0, true),
+				Putrootfh(), Getfh())
+			c.Fail(
+				NFS4ERR_SEQ_FALSE_RETRY,
+				Sequence(c.Sid, c.Seq - 1, 0, 0, false),
+				Putrootfh(), Getfh())
+		})
+
+        It("Lock Sanity (PyNFS::LOCK1)", func() {
+            r := c.Pass(
+				c.SequenceArgs(),
+				Putfh(rootFH),
+				c.OpenArgs(), Getfh())
+			resok := LastRes(&r).Opgetfh.Resok4
+			fh := resok.Object
+			sid := r[2].Opopen.Resok4.Stateid
+            c.Pass(
+				c.SequenceArgs(),
+				Putfh(fh),
+				c.LockArgs(sid))
+            c.Fail(
+				NFS4ERR_DENIED,
+				c.SequenceArgs(),
+				Putfh(fh),
+				c.LocktArgs("Other owner"))
+        })
+
 
 	})
 
 	Context("Slow", func() {
+
+        It("Session Expiration, Lock Release", func() {
+			cliExpiring := NewNFSv41Client(
+				Config.GetHost(), Config.GetPort(),
+					RandString(8) + ".fake.net", 0, 0, RandString(8))
+			cliExpiring.ExchangeId()
+			cliExpiring.CreateSession()
+			cliExpiring.GetSomeAttr()
+
+            r := cliExpiring.Pass(
+				cliExpiring.SequenceArgs(),
+				Putfh(rootFH),
+				cliExpiring.OpenArgs(), Getfh())
+			resok := LastRes(&r).Opgetfh.Resok4
+			fh := resok.Object
+			sid := r[2].Opopen.Resok4.Stateid
+            cliExpiring.Pass(
+				cliExpiring.SequenceArgs(),
+				Putfh(fh),
+				cliExpiring.LockArgs(sid))
+
+			// pinging server in default client and abandon in cliExpiring
+			// supposing LeaseTime is the same
+			interval := time.Second * time.Duration(c.LeaseTime / 6)
+			for i:=0;i<7;i++ {
+				time.Sleep(interval)
+				c.Pass(c.SequenceArgs())
+			}
+
+            c.Pass(
+				c.SequenceArgs(),
+				Putfh(fh),
+				c.LocktArgs("Other Owner"))
+
+            cliExpiring.Fail(
+				NFS4ERR_BADSESSION,
+				cliExpiring.SequenceArgs(),
+			)
+			cliExpiring.Close()
+        })
 
 		It("CreateSession Timeout (PyNFS::EID9)", func() {
 			cliStale := NewNFSv41Client(

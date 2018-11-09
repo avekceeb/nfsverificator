@@ -8,7 +8,7 @@ import (
 	"github.com/avekceeb/nfsverificator/xdr"
 	. "github.com/avekceeb/nfsverificator/v41"
 	. "github.com/avekceeb/nfsverificator/common"
-    . "github.com/onsi/gomega"
+    "github.com/onsi/ginkgo"
 	"strings"
 )
 
@@ -17,7 +17,6 @@ const (
 )
 
 var (
-	BeOK = Equal(int32(NFS4_OK))
 	DefProtect = StateProtect4A{SpaHow:0}
 	DefImpl = []NfsImplID4{{
 				NiiDate:Nfstime4{Seconds: 0, Nseconds: 0},
@@ -39,6 +38,33 @@ var (
 		CaMaxrequests:64,
 	}
 )
+
+/**********************************************
+	Minimalist Assertion infrastructure
+***********************************************/
+
+func Assert(condition bool, errMessage string) {
+	if ! condition {
+		ginkgo.Fail(errMessage)
+	}
+}
+
+func AssertStatus(actual int32, expected int32) {
+	Assert(actual == expected,
+		fmt.Sprintf("Expected: %s  Got: %s",
+			ErrorName(expected), ErrorName(actual)))
+}
+
+func AssertNfsOK(actual int32) {
+	AssertStatus(actual, NFS4_OK)
+}
+
+func AssertNoErr(err error) {
+	if err != nil {
+		ginkgo.Fail(fmt.Sprintf(
+			"Unexpected error: %s", err.Error()))
+	}
+}
 
 ////////// helpers ///////////////
 
@@ -169,7 +195,8 @@ func NewNFSv41Client(srvHost string, srvPort int, authHost string, uid uint32, g
 	client := NFSv41Client{}
 	u := rpc.NewAuthUnix(authHost, uid, gid)
 	client.Auth = u.Auth()
-	client.AuthSys = AuthsysParms{Stamp:u.Stamp, Uid:uid, Gid:gid, Machinename:authHost, GidLen:0}
+	client.AuthSys = AuthsysParms{
+		Stamp:u.Stamp, Uid:uid, Gid:gid, Machinename:authHost, GidLen:0}
 	var err error
 	client.RpcClient, err = rpc.DialService(srvHost, srvPort)
 	if err != nil {
@@ -185,20 +212,17 @@ func NewNFSv41Client(srvHost string, srvPort int, authHost string, uid uint32, g
 
 func (t *NFSv41Client) Pass(args ...NfsArgop4) ([]NfsResop4) {
 	reply, err := t.Compound(args...)
-	Expect(err).To(BeNil())
-	Expect(reply.Status).To(BeOK)
-	// TODO: ???
-	//for _, k := range reply.Resarray {
-	//    Expect(GetStatus(&k)).To(Equal(NFS4_OK))
-	//}
+	AssertNoErr(err)
+	AssertNfsOK(reply.Status)
+	// Note: not checking every op in compound, only overall status
 	return reply.Resarray
 }
 
 
 func (t *NFSv41Client) Fail(stat int32, args ...NfsArgop4) ([]NfsResop4) {
 	res, err := t.Compound(args...)
-	Expect(err).To(BeNil())
-	Expect(res.Status).To(Equal(int32(stat)))
+	AssertNoErr(err)
+	AssertStatus(stat, res.Status)
 	return res.Resarray
 }
 

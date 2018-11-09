@@ -1,14 +1,14 @@
 package v40tests
 
 import (
-    . "github.com/onsi/gomega"
 	. "github.com/avekceeb/nfsverificator/v40"
 	. "github.com/avekceeb/nfsverificator/common"
-	"strings"
 	"github.com/avekceeb/nfsverificator/rpc"
+	"github.com/avekceeb/nfsverificator/xdr"
+    "github.com/onsi/ginkgo"
+	"strings"
 	"math/rand"
 	"errors"
-	"github.com/avekceeb/nfsverificator/xdr"
 	"fmt"
 )
 
@@ -36,10 +36,33 @@ type CompoundMessage struct {
 	Args COMPOUND4args
 }
 
+/**********************************************
+	Minimalist Assertion infrastructure
+***********************************************/
 
-var (
-	BeOK = Equal(int32(NFS4_OK))
-)
+func Assert(condition bool, errMessage string) {
+	if ! condition {
+		ginkgo.Fail(errMessage)
+	}
+}
+
+func AssertStatus(actual int32, expected int32) {
+	Assert(actual == expected,
+		fmt.Sprintf("Expected: %s  Got: %s",
+			ErrorName(expected), ErrorName(actual)))
+}
+
+func AssertNfsOK(actual int32) {
+	AssertStatus(actual, NFS4_OK)
+}
+
+func AssertNoErr(err error) {
+	if err != nil {
+		ginkgo.Fail(fmt.Sprintf(
+			"Unexpected error: %s", err.Error()))
+	}
+}
+
 
 func NewNFSv40Client(srvHost string, srvPort int, authHost string, uid uint32, gid uint32, cid string) (*NFSv40Client) {
 	client := NFSv40Client{}
@@ -142,20 +165,16 @@ func (cli *NFSv40Client) Null() (error) {
 
 func (t *NFSv40Client) Pass(args ...NfsArgop4) ([]NfsResop4) {
 	reply, err := t.Compound(args...)
-	Expect(err).To(BeNil())
-	Expect(reply.Status).To(BeOK)
-	// TODO: ???
-	//for _, k := range reply.Resarray {
-	//    Expect(GetStatus(&k)).To(Equal(NFS4_OK))
-	//}
+	AssertNoErr(err)
+	AssertNfsOK(reply.Status)
 	return reply.Resarray
 }
 
 
 func (t *NFSv40Client) Fail(stat int32, args ...NfsArgop4) ([]NfsResop4) {
 	res, err := t.Compound(args...)
-	Expect(err).To(BeNil())
-	Expect(res.Status).To(Equal(int32(stat)))
+	AssertNoErr(err)
+	AssertStatus(res.Status, stat)
 	return res.Resarray
 }
 
@@ -248,22 +267,11 @@ func (t *NFSv40Client) LockSimple(fh NfsFh4, ltype int32, off uint64, length uin
 							Owner: t.Id}}}))
 }
 
-
-func (t *NFSv40Client) BuildLockt(ltype int32, off uint64, length uint64, owner string) (LOCKT4args) {
-    return LOCKT4args{
-		Locktype:ltype,
-		Offset:off,
-		Length:length,
-		Owner:LockOwner4{Clientid: t.ClientId, Owner: owner}}
-}
-
-//func Write(stateId StateId4, data *[]byte, offset uint64) (NfsArgOp4) {
-//    return NfsArgOp4{ArgOp: OP_WRITE,
-//        Write: WRITE4args{State:stateId, Offset: offset, Stable: FILE_SYNC4, Data: *data}}
-//}
-
-//func Close(seq uint32, stateId StateId4) (NfsArgOp4) {
-//    return NfsArgOp4{ArgOp: OP_CLOSE, Close:CLOSE4args{SeqId:seq, StateId: stateId}}
-//}
 //
-//
+//func (t *NFSv40Client) BuildLockt(ltype int32, off uint64, length uint64, owner string) (LOCKT4args) {
+//    return LOCKT4args{
+//		Locktype:ltype,
+//		Offset:off,
+//		Length:length,
+//		Owner:LockOwner4{Clientid: t.ClientId, Owner: owner}}
+//}

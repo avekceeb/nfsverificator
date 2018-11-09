@@ -2,7 +2,6 @@ package v40tests
 
 import (
     . "github.com/onsi/ginkgo"
-    . "github.com/onsi/gomega"
 	. "github.com/avekceeb/nfsverificator/v40"
 	. "github.com/avekceeb/nfsverificator/common"
 )
@@ -43,11 +42,11 @@ var _ = Describe("Functional", func() {
 		//	//}
 		//})
 
-        It("Same FH (PyNFS::PUTFH1r)", func() {
-            r := c.Pass(Putfh(rootFH), Getfh())
-            Expect(r[1].Opgetfh.Resok4.Object).To(Equal(rootFH))
-
-        })
+        //It("Same FH (PyNFS::PUTFH1r)", func() {
+        //    r := c.Pass(Putfh(rootFH), Getfh())
+        //    Assert(bytes.Equal(r[1].Opgetfh.Resok4.Object, rootFH),
+			//	"fh should be same")
+        //})
 
         It("Bad FH (PyNFS::PUTFH2)", func() {
             c.Fail(NFS4ERR_BADHANDLE, Putfh(FhFromString("bad")), Getfh())
@@ -76,9 +75,9 @@ var _ = Describe("Functional", func() {
             c.SetAttr(dirFH2, 0000)
 			r, _ := c.Compound(Putfh(rootFH), Lookup(dir), Lookup(dir))
             if c.AuthSys.Uid == 0 {
-				Expect(r.Status).To(BeOK)
+				AssertNfsOK(r.Status)
             } else {
-				Expect(r.Status).To(Equal(int32(NFS4ERR_ACCESS)))
+				AssertStatus(r.Status, NFS4ERR_ACCESS)
             }
         })
 

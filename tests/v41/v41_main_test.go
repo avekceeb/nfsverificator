@@ -1,10 +1,9 @@
 package v41tests
 
 import (
-    . "github.com/onsi/ginkgo"
-    . "github.com/onsi/gomega"
     "testing"
     "flag"
+    . "github.com/onsi/ginkgo"
     . "github.com/avekceeb/nfsverificator/common"
 )
 
@@ -14,7 +13,6 @@ func init() {
 }
 
 func TestSanity(t *testing.T) {
-    RegisterFailHandler(Fail)
     RunSpecs(t, "NFSv4.1")
 }
 

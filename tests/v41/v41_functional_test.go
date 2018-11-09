@@ -1,8 +1,7 @@
 package v41tests
 
 import (
-	. "github.com/onsi/gomega"
-    . "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo"
  	. "github.com/avekceeb/nfsverificator/v41"
 	. "github.com/avekceeb/nfsverificator/common"
 	"time"
@@ -128,8 +127,11 @@ var _ = Describe("Functional", func() {
 			)
 			res := LastRes(&r).Opaccess.Resok4
 			// ensure not asked bits are not set
-			Expect(res.Supported & absentMask).To(Equal(uint32(0)))
-			Expect(res.Access & absentMask).To(Equal(uint32(0)))
+			//Expect(res.Supported & absentMask).To(Equal(uint32(0)))
+			Assert(0 == (res.Supported & absentMask),
+				"Wrong Supported mask")
+			Assert(0 == (res.Access & absentMask),
+				"Wrong Access mask")
 			//if 1 == res.Supported && uint32(ACCESS4_READ) {
 			//}
 		})
@@ -197,7 +199,6 @@ var _ = Describe("Functional", func() {
 				Putfh(fh),
 				c.LocktArgs("Other owner"))
         })
-
 
 	})
 
@@ -268,5 +269,3 @@ var _ = Describe("Functional", func() {
 	})
 
 })
-
-

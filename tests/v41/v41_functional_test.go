@@ -18,9 +18,7 @@ var (
 var _ = Describe("Functional", func() {
 
 	BeforeSuite(func() {
-		c = NewNFSv41Client(
-			Config.GetHost(), Config.GetPort(),
-				RandString(8) + ".fake.net", 0, 0, RandString(8))
+		c = NewNFSv41DefaultClient()
 		c.ExchangeId()
 		c.CreateSession()
 		c.GetSomeAttr()
@@ -28,22 +26,44 @@ var _ = Describe("Functional", func() {
 	})
 
 	AfterSuite(func() {
+		// TODO: DestroySession
+		// DestroyClientId
 		c.Close()
 	})
 
 	Context("Basic", func() {
 
+		It("Layoutget", func(){
+			// TODO: check Config.ShareIsNotPNFS
+			r := c.Pass(c.SequenceArgs(), Putfh(rootFH), c.OpenArgs(), Getfh())
+			resok := r[2].Opopen.Resok4
+			stateId := resok.Stateid
+			fh := LastRes(&r).Opgetfh.Resok4.Object
+			c.Fail(
+				NFS4ERR_LAYOUTUNAVAILABLE,
+				c.SequenceArgs(),
+				Putfh(fh),
+				Layoutget(false,
+					5 /*SCSI*/,
+					2 /*RW*/,
+					0, 4096, 4096, stateId, 4096 /*maxcount*/))
+			c.Pass(
+				c.SequenceArgs(),
+				Putfh(fh),
+				Close(c.Seq, stateId))
+		})
+
 		It("PyNFS::LOOK1", func(){
 			c.Fail(
 				NFS4ERR_NOFILEHANDLE,
-				Sequence(c.Sid, c.Seq, 0, 0, false),
+				c.SequenceArgs(),
 				Lookup(RandString(12)))
 		})
 
 		It("PyNFS::LOOK2", func(){
 			c.Fail(
 				NFS4ERR_NOENT,
-				Sequence(c.Sid, c.Seq, 0, 0, false),
+				c.SequenceArgs(),
 				Putrootfh(),
 				Lookup(RandString(12)))
 		})
@@ -51,7 +71,7 @@ var _ = Describe("Functional", func() {
 		It("PyNFS::LOOK3", func(){
 			c.Fail(
 				NFS4ERR_INVAL,
-				Sequence(c.Sid, c.Seq, 0, 0, false),
+				c.SequenceArgs(),
 				Putrootfh(),
 				Lookup(""))
 		})
@@ -73,7 +93,7 @@ var _ = Describe("Functional", func() {
 		It("Sequence in non-first position", func(){
 			c.Fail(
 				NFS4ERR_SEQUENCE_POS,
-				Sequence(c.Sid, c.Seq, 0, 0, false),
+				c.SequenceArgs(),
 				Putrootfh(),
 				Sequence(c.Sid, c.Seq, 0, 0, false))
 		})
@@ -121,13 +141,12 @@ var _ = Describe("Functional", func() {
 			absentMask := MakeUint32Flags(ACCESS4_DELETE,
 				ACCESS4_EXTEND, ACCESS4_LOOKUP, ACCESS4_MODIFY)
 			r := c.Pass(
-				Sequence(c.Sid, c.Seq, 0, 0, false),
+				c.SequenceArgs(),
 				Putrootfh(),
 				Access(MakeUint32Flags(ACCESS4_READ, ACCESS4_EXECUTE)),
 			)
 			res := LastRes(&r).Opaccess.Resok4
-			// ensure not asked bits are not set
-			//Expect(res.Supported & absentMask).To(Equal(uint32(0)))
+			By("ensure not asked bits are not set")
 			Assert(0 == (res.Supported & absentMask),
 				"Wrong Supported mask")
 			Assert(0 == (res.Access & absentMask),
@@ -173,7 +192,7 @@ var _ = Describe("Functional", func() {
 
 		It("TODO: NFS4ERR_SEQ_FALSE_RETRY", func(){
 			c.Pass(
-				Sequence(c.Sid, c.Seq, 0, 0, true),
+				c.SequenceArgs(),
 				Putrootfh(), Getfh())
 			c.Fail(
 				NFS4ERR_SEQ_FALSE_RETRY,
@@ -200,14 +219,25 @@ var _ = Describe("Functional", func() {
 				c.LocktArgs("Other owner"))
         })
 
+		It("DestroySession", func(){
+			newClient := NewNFSv41DefaultClient()
+			newClient.ExchangeId()
+			newClient.CreateSession()
+			newClient.GetSomeAttr()
+			By("Destroing session...")
+			newClient.Pass(newClient.SequenceArgs(),
+				DestroySession(newClient.Sid))
+			By("Trying to use destroyed...")
+			newClient.Fail(NFS4ERR_BADSESSION, newClient.SequenceArgs())
+			newClient.Pass(DestroyClientid(newClient.ClientId))
+		})
+
 	})
 
 	Context("Slow", func() {
 
         It("Session Expiration, Lock Release", func() {
-			cliExpiring := NewNFSv41Client(
-				Config.GetHost(), Config.GetPort(),
-					RandString(8) + ".fake.net", 0, 0, RandString(8))
+			cliExpiring := NewNFSv41DefaultClient()
 			cliExpiring.ExchangeId()
 			cliExpiring.CreateSession()
 			cliExpiring.GetSomeAttr()
@@ -224,7 +254,7 @@ var _ = Describe("Functional", func() {
 				Putfh(fh),
 				cliExpiring.LockArgs(sid))
 
-			// pinging server in default client and abandon in cliExpiring
+			By("pinging server in default client and abandon in cliExpiring")
 			// supposing LeaseTime is the same
 			interval := time.Second * time.Duration(c.LeaseTime / 6)
 			for i:=0;i<7;i++ {
@@ -245,9 +275,7 @@ var _ = Describe("Functional", func() {
         })
 
 		It("CreateSession Timeout (PyNFS::EID9)", func() {
-			cliStale := NewNFSv41Client(
-				Config.GetHost(), Config.GetPort(),
-					RandString(8) + ".fake.net", 0, 0, RandString(8))
+			cliStale := NewNFSv41DefaultClient()
 
 			time.Sleep(time.Second * time.Duration(c.LeaseTime + 5))
 

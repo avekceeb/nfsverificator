@@ -208,6 +208,11 @@ func NewNFSv41Client(srvHost string, srvPort int, authHost string, uid uint32, g
 	return &client
 }
 
+func NewNFSv41DefaultClient() (*NFSv41Client) {
+	return NewNFSv41Client(Config.GetHost(), Config.GetPort(),
+		RandString(8) + ".fake.net", 0, 0, RandString(8))
+}
+
 // HELPERS FOR CHECK COMPOUND STATUS //
 
 func (t *NFSv41Client) Pass(args ...NfsArgop4) ([]NfsResop4) {
@@ -222,7 +227,7 @@ func (t *NFSv41Client) Pass(args ...NfsArgop4) ([]NfsResop4) {
 func (t *NFSv41Client) Fail(stat int32, args ...NfsArgop4) ([]NfsResop4) {
 	res, err := t.Compound(args...)
 	AssertNoErr(err)
-	AssertStatus(stat, res.Status)
+	AssertStatus(res.Status, stat)
 	return res.Resarray
 }
 

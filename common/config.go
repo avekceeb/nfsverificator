@@ -21,11 +21,12 @@ func init() {
 }
 
 type Server struct {
-	Host       string    `json:"host"`
-	Port       int       `json:"port"`
-	ExportsRW  []string  `json:"exports-rw"`
-	ExportsRO  []string  `json:"exports-ro"`
-	RebootCmd  string    `json:"reboot-cmd"`
+	Host          string    `json:"host"`
+	Port          int       `json:"port"`
+	ExportsRW     []string  `json:"exports-rw"`
+	ExportsRO     []string  `json:"exports-ro"`
+	ExportsBlock  []string  `json:"exports-block-layout"`
+	RebootCmd     string    `json:"reboot-cmd"`
 	// these would be obtained by requests to server itself
 	//LeaseTime  int ?? (in client)
 }
@@ -77,4 +78,12 @@ func (c* TestConfig) GetPort() int {
 
 func (c *TestConfig) GetRWExport() string {
 	return c.Servers[c.DefaultServer].ExportsRW[0]
+}
+
+func (c *TestConfig) GetBlockExport() string {
+	if 0 != len(c.Servers[c.DefaultServer].ExportsBlock) {
+		return c.Servers[c.DefaultServer].ExportsBlock[0]
+	} else {
+		return ""
+	}
 }

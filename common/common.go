@@ -28,6 +28,14 @@ func RandString(n int) string {
     return string(b)
 }
 
+func RandSlice(n int) []string {
+	s := make([]string, n)
+	for i:=range s {
+		s[i] = RandString(16)
+	}
+	return s
+}
+
 func CheckFlag(flags uint32, flag int) bool {
 	return 0 != (flags & uint32(flag))
 }

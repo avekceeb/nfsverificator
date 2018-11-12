@@ -22,3 +22,4 @@ Based on github.com/vmware/go-nfs-client using github.com/rasky/go-xdr/xdr2
 - config: provide user
 - multi-server
 - config: provide server reboot command
+- option to run test on every share provided by default server (exported with different options)

@@ -11,6 +11,8 @@ import (
 var (
 	c *NFSv41Client
 	rootFH NfsFh4
+	blockExport  string
+	rootBlockFH  NfsFh4
 	// TODO: list of fh to clean up
 	// get name by fh and remove in AfterSuite
 )
@@ -23,6 +25,10 @@ var _ = Describe("Functional", func() {
 		c.CreateSession()
 		c.GetSomeAttr()
 		rootFH = c.LookupFromRoot(Config.GetRWExport())
+		blockExport = Config.GetBlockExport()
+		if "" != blockExport {
+			rootBlockFH = c.LookupFromRoot(blockExport)
+		}
 	})
 
 	AfterSuite(func() {
@@ -33,20 +39,22 @@ var _ = Describe("Functional", func() {
 
 	Context("Basic", func() {
 
-		It("Layoutget", func(){
+		It("Layout Unavailable", func(){
 			// TODO: check Config.ShareIsNotPNFS
 			r := c.Pass(c.SequenceArgs(), Putfh(rootFH), c.OpenArgs(), Getfh())
 			resok := r[2].Opopen.Resok4
 			stateId := resok.Stateid
 			fh := LastRes(&r).Opgetfh.Resok4.Object
-			c.Fail(
-				NFS4ERR_LAYOUTUNAVAILABLE,
-				c.SequenceArgs(),
-				Putfh(fh),
-				Layoutget(false,
-					5 /*SCSI*/,
-					2 /*RW*/,
-					0, 4096, 4096, stateId, 4096 /*maxcount*/))
+			for layout := 0; layout < 6; layout++ {
+				c.Fail(
+					NFS4ERR_LAYOUTUNAVAILABLE,
+					c.SequenceArgs(),
+					Putfh(fh),
+					Layoutget(false,
+						int32(layout),
+						2 /*RW*/,
+						0, 4096, 4096, stateId, 4096 /*maxcount*/))
+			}
 			c.Pass(
 				c.SequenceArgs(),
 				Putfh(fh),
@@ -191,6 +199,7 @@ var _ = Describe("Functional", func() {
 		})
 
 		It("TODO: NFS4ERR_SEQ_FALSE_RETRY", func(){
+			Skip("TODO: toxic test")
 			c.Pass(
 				c.SequenceArgs(),
 				Putrootfh(), Getfh())

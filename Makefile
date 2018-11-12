@@ -6,7 +6,7 @@ focus :=
 config := $(PWD)/config.json
 
 opts := -config $(config)
-gopts := --trace -skip "$(skip)" -focus "$(focus)"
+gopts := --trace -keepGoing -skip "$(skip)" -focus "$(focus)"
 
 # -v
 

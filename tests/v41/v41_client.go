@@ -248,6 +248,34 @@ func (t *NFSv41Client) LookupFromRoot(path string) (fh NfsFh4) {
     return fh
 }
 
+/* TODO:
+RFC 5661 Section 13.  NFSv4.1 as a Storage Protocol in pNFS: the File Layout Type
+
+   The client MAY request zero or more of EXCHGID4_FLAG_USE_NON_PNFS,
+   EXCHGID4_FLAG_USE_PNFS_DS, or EXCHGID4_FLAG_USE_PNFS_MDS, even though
+   some combinations (e.g., EXCHGID4_FLAG_USE_NON_PNFS |
+   EXCHGID4_FLAG_USE_PNFS_MDS) are contradictory.  However, the server
+   MUST only return the following acceptable combinations:
+
+        +--------------------------------------------------------+
+        | Acceptable Results from EXCHANGE_ID                    |
+        +--------------------------------------------------------+
+        | EXCHGID4_FLAG_USE_PNFS_MDS                             |
+        | EXCHGID4_FLAG_USE_PNFS_MDS | EXCHGID4_FLAG_USE_PNFS_DS |
+        | EXCHGID4_FLAG_USE_PNFS_DS                              |
+        | EXCHGID4_FLAG_USE_NON_PNFS                             |
+        | EXCHGID4_FLAG_USE_PNFS_DS | EXCHGID4_FLAG_USE_NON_PNFS |
+        +--------------------------------------------------------+
+
+   As the above table implies, a server can have one or two roles.  A
+   server can be both a metadata server and a data server, or it can be
+   both a data server and non-metadata server.  In addition to returning
+   two roles in the EXCHANGE_ID's results, and thus serving both roles
+   via a common client ID, a server can serve two roles by returning a
+   unique client ID and server owner for each role in each of two
+   EXCHANGE_ID results, with each result indicating each role.
+
+ */
 
 func (cli *NFSv41Client) ExchangeId() {
 	r := cli.Pass(ExchangeId(

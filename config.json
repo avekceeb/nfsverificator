@@ -4,9 +4,9 @@
 	"gid" : 0,
 	"servers" : {
 		"localhost" : {
-				"host" : "10.162.81.43",
+				"host" : "localhost",
 				"port" : 2049,
-				"exports-rw" : ["/srv"],
+				"exports-rw" : ["/"],
 				"exports-ro" : [],
 				"exports-block-layout" : ["/vol1"],
                 "reboot-cmd" : ""

@@ -604,9 +604,9 @@ const LAYOUT4_RET_REC_FSID              = 2;
 const LAYOUT4_RET_REC_ALL               = 3;
 %
 enum layoutreturn_type4 {
-        LAYOUTRETURN4_FILE = LAYOUT4_RET_REC_FILE,
-        LAYOUTRETURN4_FSID = LAYOUT4_RET_REC_FSID,
-        LAYOUTRETURN4_ALL  = LAYOUT4_RET_REC_ALL
+        LAYOUTRETURN4_FILE = 1,
+        LAYOUTRETURN4_FSID = 2,
+        LAYOUTRETURN4_ALL  = 3
 };
 
 struct layoutreturn_file4 {
@@ -1176,13 +1176,13 @@ typedef uint32_t nfl_util4;
 %
 
 enum filelayout_hint_care4 {
-        NFLH4_CARE_DENSE        = NFL4_UFLG_DENSE,
+        NFLH4_CARE_DENSE        = 0x00000001,
 
         NFLH4_CARE_COMMIT_THRU_MDS
-                                = NFL4_UFLG_COMMIT_THRU_MDS,
+                                = 0x00000002,
 
         NFL42_CARE_IO_ADVISE_THRU_MDS
-                                = NFL42_UFLG_IO_ADVISE_THRU_MDS,
+                                = 0x00000004,
 
         NFLH4_CARE_STRIPE_UNIT_SIZE
                                 = 0x00000040,
@@ -1386,12 +1386,13 @@ union createtype4 switch (nfs_ftype4 type) {
  case NF4LNK:
          linktext4 linkdata;
  case NF4BLK:
+         specdata4 blkdevdata;
  case NF4CHR:
-         specdata4 devdata;
- case NF4SOCK:
+         specdata4 chrdevdata;
+/* case NF4SOCK:
  case NF4FIFO:
  case NF4DIR:
-         void;
+         void;*/
  default:
          void;  /* Server should return NFS4ERR_BADTYPE. */
 };
@@ -1616,8 +1617,9 @@ struct creatverfattr {
 
 union createhow4 switch (createmode4 mode) {
  case UNCHECKED4:
+         fattr4         createattrsunchecked;
  case GUARDED4:
-         fattr4         createattrs;
+         fattr4         createattrsguarded;
  case EXCLUSIVE4:
          verifier4      createverf;
  case EXCLUSIVE4_1:
@@ -3271,7 +3273,6 @@ struct COMPOUND4res {
 
 /*
  * Remote file service routines
- */
 program NFS4_PROGRAM {
         version NFS_V4 {
                 void
@@ -3282,6 +3283,7 @@ program NFS4_PROGRAM {
 
         } = 4;
 } = 100003;
+ */
 
 /*
  * NFS4 callback procedure definitions and program
@@ -3324,9 +3326,9 @@ struct CB_ILLEGAL4res {
  */
 
 enum layoutrecall_type4 {
-        LAYOUTRECALL4_FILE = LAYOUT4_RET_REC_FILE,
-        LAYOUTRECALL4_FSID = LAYOUT4_RET_REC_FSID,
-        LAYOUTRECALL4_ALL  = LAYOUT4_RET_REC_ALL
+        LAYOUTRECALL4_FILE = 1,
+        LAYOUTRECALL4_FSID = 2,
+        LAYOUTRECALL4_ALL  = 3
 };
 
 struct layoutrecall_file4 {
@@ -3698,7 +3700,6 @@ struct CB_COMPOUND4res {
  * will assign the exact transient program number and provide
  * that to the server via the CREATE_SESSION or
  * BACKCHANNEL_CTL operations.
- */
 program NFS4_CALLBACK {
         version NFS_CB {
                 void
@@ -3707,3 +3708,4 @@ program NFS4_CALLBACK {
                         CB_COMPOUND(CB_COMPOUND4args) = 1;
         } = 1;
 } = 0x40000000;
+ */

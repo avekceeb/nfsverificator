@@ -1,4 +1,4 @@
-.PHONY: v40 v41
+.PHONY: v40 v41 v42
 
 # Defaults:
 skip := Stress|Slow
@@ -18,6 +18,9 @@ v40:
 
 v41:
 	ginkgo $(gopts) ./tests/v41 -- $(opts)
+
+v42:
+	ginkgo $(gopts) ./tests/v42 -- $(opts)
 
 stress:
 	ginkgo -v -focus "Stress.*Multi" ./tests/v40 -- $(opts)

@@ -8,36 +8,49 @@ import (
 	"math/rand"
 )
 
-var (
-	c *NFSv41Client
-	rootFH NfsFh4
-	blockExport  string
-	rootBlockFH  NfsFh4
-	// TODO: list of fh to clean up
-	// get name by fh and remove in AfterSuite
-)
+/*
+	TODO: refer | migration
+   When the EXCHGID4_FLAG_SUPP_MOVED_REFER flag bit is set, the client
+   indicates that it is capable of dealing with an NFS4ERR_MOVED error
+   as part of a referral sequence.
+   If the server will potentially perform a referral, it MUST set
+   EXCHGID4_FLAG_SUPP_MOVED_REFER in eir_flags.
+
+   When the EXCHGID4_FLAG_SUPP_MOVED_MIGR is set, the client indicates
+   that it is capable of dealing with an NFS4ERR_MOVED error as part of
+   a file system migration sequence.
+   If the server
+   will potentially perform a migration, it MUST set
+   EXCHGID4_FLAG_SUPP_MOVED_MIGR in eir_flags.
+
+https://www.ietf.org/mail-archive/web/nfsv4/current/msg00919.html
+https://wiki.linux-nfs.org/wiki/index.php/NFS_Recovery_and_Client_Migration
+ */
 
 var _ = Describe("Functional", func() {
 
-	BeforeSuite(func() {
-		c = NewNFSv41DefaultClient()
-		c.ExchangeId()
-		c.CreateSession()
-		c.GetSomeAttr()
-		rootFH = c.LookupFromRoot(Config.GetRWExport())
-		blockExport = Config.GetBlockExport()
-		if "" != blockExport {
-			rootBlockFH = c.LookupFromRoot(blockExport)
-		}
-	})
-
-	AfterSuite(func() {
-		// TODO: DestroySession
-		// DestroyClientId
-		c.Close()
-	})
-
 	Context("Basic", func() {
+
+		It("BUG: deadlock secinfo+readdir compound", func(){
+			openArgs := c.OpenArgs()
+			name := openArgs.Opopen.Claim.File
+			c.Pass(c.SequenceArgs(),
+				Putrootfh(),
+				openArgs,
+			)
+			c.Compound(c.SequenceArgs(),
+				Putfh(rootFH),
+				Secinfo(name),
+				Readdir(0, Verifier4{}, 4096, 8192,
+					[]uint32{MakeGetAttrFlags(FATTR4_SIZE)}))
+		})
+
+		It("Readdir", func(){
+			_ = c.Pass(c.SequenceArgs(),
+				Putfh(rootFH),
+				Readdir(0, Verifier4{}, 4096, 8192,
+					[]uint32{MakeGetAttrFlags(FATTR4_SIZE)}))
+		})
 
 		It("Layout Unavailable", func(){
 			// TODO: check Config.ShareIsNotPNFS

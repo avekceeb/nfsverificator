@@ -6,12 +6,16 @@ import (
 	"os"
 	"flag"
 	"path/filepath"
+	"strings"
+	"time"
+	"fmt"
+	"os/exec"
 )
 
 var (
-    Config TestConfig
+    Config     TestConfig
     ConfigFile string
-
+	bkgCmd     *exec.Cmd
 )
 
 func init() {
@@ -34,6 +38,7 @@ type Server struct {
 type TestConfig struct {
 	DefaultServer string            `json:"default-server"`
 	Servers       map[string]Server `json:"servers"`
+	BkgCmd        string            `json:"background-cmd"`
 }
 
 func ReadConfig(configPath string) (config TestConfig) {
@@ -86,4 +91,39 @@ func (c *TestConfig) GetBlockExport() string {
 	} else {
 		return ""
 	}
+}
+
+//////// external background commands ////////////////
+
+func (c *TestConfig) RunExternalCommands() {
+	if "" != c.BkgCmd {
+		cmdList := strings.Split(Config.BkgCmd, " ")
+		cmd := cmdList[0]
+		cmdList = cmdList[1:len(cmdList)]
+		t := time.Now()
+		for i, v := range cmdList {
+			if strings.Contains(v, "%s") {
+				cmdList[i] = fmt.Sprintf(v,
+					fmt.Sprintf("%d%02d%02dT%02d.%02d.%02d",
+						t.Year(), t.Month(), t.Day(),
+						t.Hour(), t.Minute(), t.Second()))
+			}
+		}
+		fmt.Println(cmdList)
+		bkgCmd = exec.Command(cmd, cmdList...)
+		bkgCmd.Start()
+		time.Sleep(time.Second)
+	}
+}
+
+func (c *TestConfig) StopExternalCommands() {
+	if nil != bkgCmd {
+		if nil != bkgCmd.Process {
+			fmt.Println("Giving background commands 3 seconds to finish...")
+			time.Sleep(time.Second*3)
+			//bkgCmd.Process.Kill()
+			bkgCmd.Process.Signal(os.Interrupt)
+		}
+	}
+
 }

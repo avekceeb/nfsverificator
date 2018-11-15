@@ -111,3 +111,15 @@ func ErrorName(code int32) string {
 		return "UNKNOWN"
 	}
 }
+
+func AreFhEqual(a, b NfsFh4) bool {
+    if len(a) != len(b) {
+        return false
+    }
+    for i, v := range a {
+        if v != b[i] {
+            return false
+        }
+    }
+    return true
+}

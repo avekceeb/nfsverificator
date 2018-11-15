@@ -50,6 +50,7 @@ var _ = Describe("Before-After", func() {
 })
 
 func TestSanity(t *testing.T) {
+	Config.SuiteName = SuiteName
     RunSpecs(t, SuiteName)
 }
 

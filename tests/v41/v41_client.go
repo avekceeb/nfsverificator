@@ -34,7 +34,7 @@ var (
 		CaMaxrequestsize:1049620,
 		CaMaxresponsesize:1049480,
 		CaMaxresponsesizeCached:3428,
-		CaMaxoperations:8,
+		CaMaxoperations:512,
 		CaMaxrequests:64,
 	}
 )
@@ -434,4 +434,10 @@ func (t *NFSv41Client) LockArgs(stateId Stateid4) NfsArgop4 {
 
 func (t *NFSv41Client) LocktArgs(owner string) (NfsArgop4) {
     return Lockt(WRITE_LT, 0, 0xffffffffffffffff, LockOwner4{Clientid: t.ClientId, Owner: owner})
+}
+
+func (t *NFSv41Client) CreateArgs(name string) (NfsArgop4) {
+	return Create(Createtype4{Type:NF4DIR},	name,
+			Fattr4{Attrmask:GetBitmap(FATTR4_MODE),
+                   AttrVals: GetPermAttrList(0777)})
 }

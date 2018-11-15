@@ -13,5 +13,6 @@ func init() {
 }
 
 func TestSanity(t *testing.T) {
+    Config.SuiteName = "NFSv4.0"
     RunSpecs(t, "NFSv4.0")
 }

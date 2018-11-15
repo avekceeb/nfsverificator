@@ -31,14 +31,26 @@ var _ = Describe("Functional", func() {
 
 	Context("Basic", func() {
 
+		It("Save/Restore FH", func(){
+			args := []NfsArgop4{c.SequenceArgs(), Putfh(rootFH), Putfh(rootFH)}
+			// TODO: get maxops (16) from session reply
+			for i:=0;i<(16-4)/2;i++ {
+				args = append(args, Savefh(), Restorefh())
+			}
+			args = append(args, Getfh())
+			r := c.Pass(args...)
+			Assert(AreFhEqual(rootFH, LastRes(&r).Opgetfh.Resok4.Object), "Filehandle should be the same")
+		})
+
 		It("BUG: deadlock secinfo+readdir compound", func(){
 			openArgs := c.OpenArgs()
 			name := openArgs.Opopen.Claim.File
 			c.Pass(c.SequenceArgs(),
-				Putrootfh(),
+				Putfh(rootFH),
 				openArgs,
 			)
-			c.Compound(c.SequenceArgs(),
+			c.Fail(NFS4ERR_NOFILEHANDLE,
+				c.SequenceArgs(),
 				Putfh(rootFH),
 				Secinfo(name),
 				Readdir(0, Verifier4{}, 4096, 8192,
@@ -72,6 +84,77 @@ var _ = Describe("Functional", func() {
 				c.SequenceArgs(),
 				Putfh(fh),
 				Close(c.Seq, stateId))
+		})
+
+		It("Rename file (PyNFS::RNM1r)", func(){
+			openArgs := c.OpenArgs()
+			oldName := openArgs.Opopen.Claim.File
+			newName := RandString(12)
+			c.Pass(c.SequenceArgs(),
+				Putfh(rootFH),
+				openArgs,
+			)
+			c.Pass(c.SequenceArgs(),
+				Putfh(rootFH),
+				Savefh(),
+				Putfh(rootFH),
+				Rename(oldName, newName))
+			c.Pass(c.SequenceArgs(),
+				Putfh(rootFH),
+				Lookup(newName))
+		})
+
+		It("Rename dir (PyNFS::RNM1d)", func(){
+			// TODO: other dir
+			oldName := RandString(12)
+			newName := RandString(12)
+			c.Pass(c.SequenceArgs(),
+				Putfh(rootFH),
+				c.CreateArgs(oldName))
+			c.Pass(c.SequenceArgs(),
+				Putfh(rootFH),
+				Savefh(),
+				Putfh(rootFH),
+				Rename(oldName, newName))
+			c.Pass(c.SequenceArgs(),
+				Putfh(rootFH),
+				Lookup(newName))
+		})
+
+		It("Soft Link", func(){
+			// TODO: other dir
+			openArgs := c.OpenArgs()
+			fileName := openArgs.Opopen.Claim.File
+			By("Target file has not been created")
+			linkName := RandString(12)
+			c.Pass(c.SequenceArgs(),
+				Putfh(rootFH),
+				Create(Createtype4{Type:NF4LNK, Linkdata:fileName}, linkName,
+					Fattr4{Attrmask:GetBitmap(FATTR4_MODE),
+                   		AttrVals: GetPermAttrList(0644)}))
+			By("Ensure link is present")
+			c.Pass(c.SequenceArgs(), Putfh(rootFH),	Lookup(linkName))
+		})
+
+		It("Hard Link", func() {
+			openArgs := c.OpenArgs()
+			fileName := openArgs.Opopen.Claim.File
+			linkName := RandString(12)
+			r := c.Pass(c.SequenceArgs(),
+				Putfh(rootFH),
+				openArgs,
+				Getfh())
+			fh := r[3].Opgetfh.Resok4.Object
+			By("Create link to file")
+			c.Pass(c.SequenceArgs(),
+				Putfh(fh),
+				Savefh(),
+				Putfh(rootFH),
+				Link(linkName))
+			By("Check link is present")
+			c.Pass(c.SequenceArgs(), Putfh(rootFH),	Lookup(linkName))
+			By("Check file is present")
+			c.Pass(c.SequenceArgs(), Putfh(rootFH),	Lookup(fileName))
 		})
 
 		It("PyNFS::LOOK1", func(){

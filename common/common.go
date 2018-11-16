@@ -82,4 +82,11 @@ func GetPermAttrList(perm uint) (l []byte) {
     return l
 }
 
-
+func InSliceUint32(val uint32, slice []uint32) bool {
+	for _, v := range slice {
+		if v == val {
+			return true
+		}
+	}
+	return false
+}

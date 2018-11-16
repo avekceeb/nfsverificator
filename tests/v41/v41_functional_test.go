@@ -31,15 +31,70 @@ var _ = Describe("Functional", func() {
 
 	Context("Basic", func() {
 
+/* TODO:
+RFC 5661 Section 13.  NFSv4.1 as a Storage Protocol in pNFS: the File Layout Type
+
+   The client MAY request zero or more of EXCHGID4_FLAG_USE_NON_PNFS,
+   EXCHGID4_FLAG_USE_PNFS_DS, or EXCHGID4_FLAG_USE_PNFS_MDS, even though
+   some combinations (e.g., EXCHGID4_FLAG_USE_NON_PNFS |
+   EXCHGID4_FLAG_USE_PNFS_MDS) are contradictory.  However, the server
+   MUST only return the following acceptable combinations:
+
+        +--------------------------------------------------------+
+        | Acceptable Results from EXCHANGE_ID                    |
+        +--------------------------------------------------------+
+        | EXCHGID4_FLAG_USE_PNFS_MDS                             |
+        | EXCHGID4_FLAG_USE_PNFS_MDS | EXCHGID4_FLAG_USE_PNFS_DS |
+        | EXCHGID4_FLAG_USE_PNFS_DS                              |
+        | EXCHGID4_FLAG_USE_NON_PNFS                             |
+        | EXCHGID4_FLAG_USE_PNFS_DS | EXCHGID4_FLAG_USE_NON_PNFS |
+        +--------------------------------------------------------+
+
+   As the above table implies, a server can have one or two roles.  A
+   server can be both a metadata server and a data server, or it can be
+   both a data server and non-metadata server.  In addition to returning
+   two roles in the EXCHANGE_ID's results, and thus serving both roles
+   via a common client ID, a server can serve two roles by returning a
+   unique client ID and server owner for each role in each of two
+   EXCHANGE_ID results, with each result indicating each role.
+
+ */
+
+		It("ExchangeId flags combinations", func() {
+			validCombinations := []uint32{
+				uint32(EXCHGID4_FLAG_USE_PNFS_MDS),
+				uint32(EXCHGID4_FLAG_USE_PNFS_DS),
+				uint32(EXCHGID4_FLAG_USE_NON_PNFS),
+				MakeUint32Flags(EXCHGID4_FLAG_USE_PNFS_MDS,
+					EXCHGID4_FLAG_USE_PNFS_DS),
+				MakeUint32Flags(EXCHGID4_FLAG_USE_PNFS_DS,
+					EXCHGID4_FLAG_USE_NON_PNFS)}
+			pnfsFlags := EXCHGID4_FLAG_MASK_PNFS & c.EidFlags
+			Assert(InSliceUint32(pnfsFlags, validCombinations),
+				"Invalid conbination of pnfs flags")
+			// TODO: request invalid combinations
+		})
+
+		It("Lokupp", func(){
+			r := c.Pass(c.SequenceArgs(),
+				Putfh(globalDirFH),	Lookupp(), Getfh())
+			Assert(AreFhEqual(rootFH, LastRes(&r).Opgetfh.Resok4.Object),
+				"Parent fh is not root")
+		})
+
 		It("Save/Restore FH", func(){
 			args := []NfsArgop4{c.SequenceArgs(), Putfh(rootFH), Putfh(rootFH)}
-			// TODO: get maxops (16) from session reply
-			for i:=0;i<(16-4)/2;i++ {
+			maxOps := int(c.ForeChAttr.CaMaxoperations)
+			for i:=0; i<(maxOps-4)/2; i++ {
 				args = append(args, Savefh(), Restorefh())
 			}
 			args = append(args, Getfh())
 			r := c.Pass(args...)
 			Assert(AreFhEqual(rootFH, LastRes(&r).Opgetfh.Resok4.Object), "Filehandle should be the same")
+			By("Repeat with too many ops")
+			args[0] = c.SequenceArgs()
+			args = append(args, Putrootfh(), Savefh(), Restorefh())
+			c.Fail(NFS4ERR_TOO_MANY_OPS, args...)
 		})
 
 		It("BUG: deadlock secinfo+readdir compound", func(){
@@ -55,6 +110,7 @@ var _ = Describe("Functional", func() {
 				Secinfo(name),
 				Readdir(0, Verifier4{}, 4096, 8192,
 					[]uint32{MakeGetAttrFlags(FATTR4_SIZE)}))
+			c.Pass(c.SequenceArgs(), Putfh(rootFH), Remove(name))
 		})
 
 		It("Readdir", func(){
@@ -62,28 +118,6 @@ var _ = Describe("Functional", func() {
 				Putfh(rootFH),
 				Readdir(0, Verifier4{}, 4096, 8192,
 					[]uint32{MakeGetAttrFlags(FATTR4_SIZE)}))
-		})
-
-		It("Layout Unavailable", func(){
-			// TODO: check Config.ShareIsNotPNFS
-			r := c.Pass(c.SequenceArgs(), Putfh(rootFH), c.OpenArgs(), Getfh())
-			resok := r[2].Opopen.Resok4
-			stateId := resok.Stateid
-			fh := LastRes(&r).Opgetfh.Resok4.Object
-			for layout := 0; layout < 6; layout++ {
-				c.Fail(
-					NFS4ERR_LAYOUTUNAVAILABLE,
-					c.SequenceArgs(),
-					Putfh(fh),
-					Layoutget(false,
-						int32(layout),
-						2 /*RW*/,
-						0, 4096, 4096, stateId, 4096 /*maxcount*/))
-			}
-			c.Pass(
-				c.SequenceArgs(),
-				Putfh(fh),
-				Close(c.Seq, stateId))
 		})
 
 		It("Rename file (PyNFS::RNM1r)", func(){
@@ -102,9 +136,10 @@ var _ = Describe("Functional", func() {
 			c.Pass(c.SequenceArgs(),
 				Putfh(rootFH),
 				Lookup(newName))
+			c.Pass(c.SequenceArgs(), Putfh(rootFH), Remove(newName))
 		})
 
-		It("Rename dir (PyNFS::RNM1d)", func(){
+		It("Rename dir (PyNFS::RNM1d,RM1d)", func(){
 			// TODO: other dir
 			oldName := RandString(12)
 			newName := RandString(12)
@@ -119,21 +154,26 @@ var _ = Describe("Functional", func() {
 			c.Pass(c.SequenceArgs(),
 				Putfh(rootFH),
 				Lookup(newName))
+			c.Pass(c.SequenceArgs(), Putfh(rootFH), Remove(newName))
 		})
 
-		It("Soft Link", func(){
-			// TODO: other dir
-			openArgs := c.OpenArgs()
-			fileName := openArgs.Opopen.Claim.File
+		It("Soft Link (PyNFS::???,RM1a)", func(){
 			By("Target file has not been created")
+			fileName := RandString(12)
 			linkName := RandString(12)
 			c.Pass(c.SequenceArgs(),
 				Putfh(rootFH),
 				Create(Createtype4{Type:NF4LNK, Linkdata:fileName}, linkName,
 					Fattr4{Attrmask:GetBitmap(FATTR4_MODE),
                    		AttrVals: GetPermAttrList(0644)}))
-			By("Ensure link is present")
-			c.Pass(c.SequenceArgs(), Putfh(rootFH),	Lookup(linkName))
+			By("Ensure the link is present")
+			r := c.Pass(
+				c.SequenceArgs(), Putfh(rootFH), Lookup(linkName), Getfh())
+			fh := LastRes(&r).Opgetfh.Resok4.Object
+			r = c.Pass(c.SequenceArgs(), Putfh(fh), Readlink())
+			Assert(fileName == LastRes(&r).Opreadlink.Resok4.Link,
+				"Readlink should read the same string")
+			c.Pass(c.SequenceArgs(), Putfh(rootFH), Remove(linkName))
 		})
 
 		It("Hard Link", func() {
@@ -155,90 +195,9 @@ var _ = Describe("Functional", func() {
 			c.Pass(c.SequenceArgs(), Putfh(rootFH),	Lookup(linkName))
 			By("Check file is present")
 			c.Pass(c.SequenceArgs(), Putfh(rootFH),	Lookup(fileName))
-		})
-
-		It("PyNFS::LOOK1", func(){
-			c.Fail(
-				NFS4ERR_NOFILEHANDLE,
-				c.SequenceArgs(),
-				Lookup(RandString(12)))
-		})
-
-		It("PyNFS::LOOK2", func(){
-			c.Fail(
-				NFS4ERR_NOENT,
-				c.SequenceArgs(),
-				Putrootfh(),
-				Lookup(RandString(12)))
-		})
-
-		It("PyNFS::LOOK3", func(){
-			c.Fail(
-				NFS4ERR_INVAL,
-				c.SequenceArgs(),
-				Putrootfh(),
-				Lookup(""))
-		})
-
-		It("Not in session error", func(){
-			c.Fail(
-				NFS4ERR_OP_NOT_IN_SESSION,
-				Putrootfh(),
-				Sequence(c.Sid, c.Seq, 0, 0, false))
-		})
-
-		It("DestroySession is not the only error", func(){
-			c.Fail(
-				NFS4ERR_NOT_ONLY_OP,
-				DestroySession(c.Sid),
-				Sequence(c.Sid, c.Seq, 0, 0, false))
-		})
-
-		It("Sequence in non-first position", func(){
-			c.Fail(
-				NFS4ERR_SEQUENCE_POS,
-				c.SequenceArgs(),
-				Putrootfh(),
-				Sequence(c.Sid, c.Seq, 0, 0, false))
-		})
-
-
-		It("CreateSession is not the only error", func() {
-			c.Fail(
-				NFS4ERR_NOT_ONLY_OP,
-				CreateSession(0, 0, 0, DefChannelAttrs,
-					DefChannelAttrs, 0x40000000,
-					[]CallbackSecParms4{}),
-				Sequence(c.Sid, c.Seq, 0, 0, false))
-		})
-
-		It("ExchangeId is not the only error", func() {
-			c.Fail(
-				NFS4ERR_NOT_ONLY_OP,
-				ExchangeId(
-					ClientOwner4{CoOwnerid: RandString(14),
-							CoVerifier: Verifier4{}},
-					DefExchgFlags,
-					DefProtect,	DefImpl),
-				Sequence(c.Sid, c.Seq, 0, 0, false))
-		})
-
-		It("PyNFS::LOOK4", func(){
-			c.Fail(
-				NFS4ERR_NAMETOOLONG,
-				c.SequenceArgs(),
-				Putrootfh(),
-				Lookup(RandString(4000)))
-		})
-
-		It("TODO: NFS4ERR_TOO_MANY_OPS", func(){
-			args := []NfsArgop4{Sequence(c.Sid, c.Seq, 0, 0, false)}
-			for i := uint32(0);i<c.ForeChAttr.CaMaxoperations/2 + 1;i++ {
-				args = append(args, Putrootfh(), Getfh())
-			}
-			c.Fail(
-				NFS4ERR_TOO_MANY_OPS,
-				args...)
+			By("Clean up")
+			c.Pass(c.SequenceArgs(), Putfh(rootFH), Remove(linkName))
+			c.Pass(c.SequenceArgs(), Putfh(rootFH), Remove(fileName))
 		})
 
 		It("TODO: Access", func(){
@@ -270,18 +229,11 @@ var _ = Describe("Functional", func() {
 				Putrootfh(), Getfh())
 		})
 
-		It("TODO: NFS4ERR_RETRY_UNCACHED_REP", func(){
-			savedSeq := c.Seq
-			c.Fail(
-				NFS4ERR_RETRY_UNCACHED_REP,
-				Sequence(c.Sid, c.Seq - 1, 0, 0, false),
-				Putrootfh(), Access(MakeUint32Flags(ACCESS4_READ)))
-			// Sequence ops result is OK, but compound status is fail, so
-			c.Seq = savedSeq
-		})
-
-		It("TODO: Write", func(){
-			r := c.Pass(c.SequenceArgs(), Putfh(rootFH), c.OpenArgs(), Getfh())
+		It("Open/Write/Close/Open/Read", func(){
+			content := RandString(128)
+			openArgs := c.OpenArgs()
+			fileName := openArgs.Opopen.Claim.File
+			r := c.Pass(c.SequenceArgs(), Putfh(rootFH), openArgs, Getfh())
 			resok := r[2].Opopen.Resok4
 			stateId := resok.Stateid
 			// TODO: CB_NOTIFY_LOCK
@@ -289,27 +241,32 @@ var _ = Describe("Functional", func() {
 			//	fmt.Println("TODO: Server does not Notify Lock Call")
 			//}
 			fh := LastRes(&r).Opgetfh.Resok4.Object
+			By("Write to file")
 			r = c.Pass(
 				c.SequenceArgs(), Putfh(fh),
-				Write(stateId, 0, UNSTABLE4, []byte(RandString(128))))
+				Write(stateId, 0, UNSTABLE4, []byte(content)))
+			By("Close file")
+			c.Pass(c.SequenceArgs(), Putfh(fh), Close(c.Seq, stateId))
+			By("Open again")
+			openArgs = c.OpenNoCreateArgs()
+			openArgs.Opopen.Claim.File = fileName
+			r = c.Pass(c.SequenceArgs(), Putfh(rootFH), openArgs)
+			stateId = LastRes(&r).Opopen.Resok4.Stateid
+			By("Read file")
+			r = c.Pass(c.SequenceArgs(), Putfh(fh), Read(stateId,0,128))
+			Assert(content == string(LastRes(&r).Opread.Resok4.Data),
+				"Data read is not the same")
+			c.Pass(c.SequenceArgs(), Putfh(fh), Close(c.Seq, stateId))
+			c.Pass(c.SequenceArgs(), Putfh(rootFH), Remove(fileName))
 		})
 
-		It("TODO: NFS4ERR_SEQ_FALSE_RETRY", func(){
-			Skip("TODO: toxic test")
-			c.Pass(
-				c.SequenceArgs(),
-				Putrootfh(), Getfh())
-			c.Fail(
-				NFS4ERR_SEQ_FALSE_RETRY,
-				Sequence(c.Sid, c.Seq - 1, 0, 0, false),
-				Putrootfh(), Getfh())
-		})
-
-        It("Lock Sanity (PyNFS::LOCK1)", func() {
+        It("Lock/Test/Unlock (PyNFS::LOCK1,LKU1)", func() {
+			openArgs := c.OpenArgs()
+			fileName := openArgs.Opopen.Claim.File
             r := c.Pass(
 				c.SequenceArgs(),
 				Putfh(rootFH),
-				c.OpenArgs(), Getfh())
+				openArgs, Getfh())
 			resok := LastRes(&r).Opgetfh.Resok4
 			fh := resok.Object
 			sid := r[2].Opopen.Resok4.Stateid
@@ -322,6 +279,49 @@ var _ = Describe("Functional", func() {
 				c.SequenceArgs(),
 				Putfh(fh),
 				c.LocktArgs("Other owner"))
+            c.Pass(c.SequenceArgs(),
+				Putfh(fh),
+				c.LocktArgs(c.Id))
+			c.Pass(c.SequenceArgs(),
+				Putfh(fh), c.LockuArgs(sid))
+			c.Pass(c.SequenceArgs(), Putfh(rootFH), Remove(fileName))
+        })
+
+        It("TODO: Lock/Unlock in one compound", func() {
+			openArgs := c.OpenArgs()
+			fileName := openArgs.Opopen.Claim.File
+            r := c.Pass(
+				c.SequenceArgs(),
+				Putfh(rootFH),
+				openArgs, Getfh())
+			resok := LastRes(&r).Opgetfh.Resok4
+			fh := resok.Object
+			sid := r[2].Opopen.Resok4.Stateid
+            c.Pass(
+				c.SequenceArgs(),
+				Putfh(fh),
+				c.LockArgs(sid),
+				Putfh(fh),
+				c.LocktArgs(c.Id),
+				Putfh(fh),
+				c.LockuArgs(sid))
+			// TODO:
+			//sid = LastRes(&r).Oplocku.LockStateid
+            //c.Fail(NFS4ERR_OLD_STATEID,
+				//c.SequenceArgs(),
+				//Putfh(fh),
+				//c.LockArgs(sid),
+				//Putfh(fh),
+				//c.LocktArgs(c.Id),
+				//Putfh(fh),
+				//c.LockuArgs(sid),
+				//Putfh(fh),
+				//c.LockArgs(sid),
+				//Putfh(fh),
+				//c.LocktArgs(c.Id),
+				//Putfh(fh),
+				//c.LockuArgs(sid))
+			c.Pass(c.SequenceArgs(), Putfh(rootFH), Remove(fileName))
         })
 
 		It("DestroySession", func(){

@@ -15,6 +15,9 @@ Based on github.com/vmware/go-nfs-client using github.com/rasky/go-xdr/xdr2
 
 #### Run Tests
     make all
+    make focus="PyNFS" v41
+    make skip="BUG"
+    make config="/path/to/custom.json"
 
 ## Features To Be Done
 - receive CallBacks (at least CB_NULL)
@@ -23,3 +26,8 @@ Based on github.com/vmware/go-nfs-client using github.com/rasky/go-xdr/xdr2
 - multi-server
 - config: provide server reboot command
 - option to run test on every share provided by default server (exported with different options)
+- various UTF8 data
+- check if NFS4ERR_GRACE before suite?
+- coverage (or at least nfsstat)
+- config entries for refer option
+- create FailMany for the case when several err codes are 'valid'

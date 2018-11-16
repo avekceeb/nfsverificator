@@ -34,7 +34,7 @@ var (
 		CaMaxrequestsize:1049620,
 		CaMaxresponsesize:1049480,
 		CaMaxresponsesizeCached:3428,
-		CaMaxoperations:512,
+		CaMaxoperations:32,
 		CaMaxrequests:64,
 	}
 )
@@ -100,6 +100,7 @@ type NFSv41Client struct {
 	Seq            uint32 // TODO ??
 	Verifier       Verifier4
 	Id             string
+	EidFlags       uint32
 	// TODO: per server / per session
 	// Now only one session
 	Sid            Sessionid4
@@ -248,35 +249,6 @@ func (t *NFSv41Client) LookupFromRoot(path string) (fh NfsFh4) {
     return fh
 }
 
-/* TODO:
-RFC 5661 Section 13.  NFSv4.1 as a Storage Protocol in pNFS: the File Layout Type
-
-   The client MAY request zero or more of EXCHGID4_FLAG_USE_NON_PNFS,
-   EXCHGID4_FLAG_USE_PNFS_DS, or EXCHGID4_FLAG_USE_PNFS_MDS, even though
-   some combinations (e.g., EXCHGID4_FLAG_USE_NON_PNFS |
-   EXCHGID4_FLAG_USE_PNFS_MDS) are contradictory.  However, the server
-   MUST only return the following acceptable combinations:
-
-        +--------------------------------------------------------+
-        | Acceptable Results from EXCHANGE_ID                    |
-        +--------------------------------------------------------+
-        | EXCHGID4_FLAG_USE_PNFS_MDS                             |
-        | EXCHGID4_FLAG_USE_PNFS_MDS | EXCHGID4_FLAG_USE_PNFS_DS |
-        | EXCHGID4_FLAG_USE_PNFS_DS                              |
-        | EXCHGID4_FLAG_USE_NON_PNFS                             |
-        | EXCHGID4_FLAG_USE_PNFS_DS | EXCHGID4_FLAG_USE_NON_PNFS |
-        +--------------------------------------------------------+
-
-   As the above table implies, a server can have one or two roles.  A
-   server can be both a metadata server and a data server, or it can be
-   both a data server and non-metadata server.  In addition to returning
-   two roles in the EXCHANGE_ID's results, and thus serving both roles
-   via a common client ID, a server can serve two roles by returning a
-   unique client ID and server owner for each role in each of two
-   EXCHANGE_ID results, with each result indicating each role.
-
- */
-
 func (cli *NFSv41Client) ExchangeId() {
 	r := cli.Pass(ExchangeId(
 		ClientOwner4{
@@ -288,6 +260,7 @@ func (cli *NFSv41Client) ExchangeId() {
 	ei := LastRes(&r).OpexchangeID.EirResok4
 	cli.ClientId = ei.EirClientid
 	cli.Seq = ei.EirSequenceid
+	cli.EidFlags = ei.EirFlags
 }
 
 func (cli *NFSv41Client) CreateSession() {
@@ -320,9 +293,10 @@ SEQUENCE, MUST use the same value of csa_sequence as the original.
 		[]CallbackSecParms4{{
 			CbSecflavor:1,
 			CbspSysCred:cli.AuthSys}}))
-	cli.Sid = LastRes(&s).OpcreateSession.CsrResok4.CsrSessionid
+	resok := s[0].OpcreateSession.CsrResok4
+	cli.Sid = resok.CsrSessionid
 	// TODO: now only fore channel
-	cli.ForeChAttr = LastRes(&s).OpcreateSession.CsrResok4.CsrForeChanAttrs
+	cli.ForeChAttr = resok.CsrForeChanAttrs
 	/*
    Once the session is created, the first SEQUENCE or CB_SEQUENCE
    received on a slot MUST have a sequence ID equal to 1; if not, the
@@ -415,6 +389,17 @@ func (t *NFSv41Client) OpenArgs() NfsArgop4 {
             OpenClaim4{Claim:CLAIM_NULL, File: RandString(12)})
 }
 
+func (t *NFSv41Client) OpenNoCreateArgs() NfsArgop4 {
+	return Open(t.Seq,
+			OPEN4_SHARE_ACCESS_READ,
+			OPEN4_SHARE_DENY_NONE,
+            OpenOwner4{
+				Clientid: t.ClientId,
+				Owner: t.Id},
+            Openflag4{Opentype: OPEN4_NOCREATE},
+            OpenClaim4{Claim:CLAIM_NULL, File: RandString(12)})
+}
+
 func (t *NFSv41Client) LockArgs(stateId Stateid4) NfsArgop4 {
 		return Lock(
 				WRITE_LT,
@@ -434,6 +419,17 @@ func (t *NFSv41Client) LockArgs(stateId Stateid4) NfsArgop4 {
 
 func (t *NFSv41Client) LocktArgs(owner string) (NfsArgop4) {
     return Lockt(WRITE_LT, 0, 0xffffffffffffffff, LockOwner4{Clientid: t.ClientId, Owner: owner})
+}
+
+/*
+   Any legal value for locktype
+   has no effect on the success or failure of the LOCKU operation.
+
+   The seqid parameter MAY be any value and the server MUST ignore it.
+
+ */
+func (t *NFSv41Client) LockuArgs(sid Stateid4) (NfsArgop4) {
+	return Locku(WRITE_LT, t.Seq, sid, 0, 0xffffffffffffffff)
 }
 
 func (t *NFSv41Client) CreateArgs(name string) (NfsArgop4) {

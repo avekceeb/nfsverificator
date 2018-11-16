@@ -3,6 +3,7 @@ package v41tests
 import (
 	. "github.com/onsi/ginkgo"
  	. "github.com/avekceeb/nfsverificator/v41"
+	. "github.com/avekceeb/nfsverificator/common"
 )
 
 
@@ -18,6 +19,9 @@ var _ = Describe("pNFS", func() {
 
 		It("Layoutget", func() {
 			skipIfNoBlock()
+			if ! CheckFlag(c.EidFlags, EXCHGID4_FLAG_USE_PNFS_MDS) {
+				Skip("Server is not MDS")
+			}
 			r := c.Pass(c.SequenceArgs(), Putfh(rootBlockFH), c.OpenArgs(), Getfh())
 			resok := r[2].Opopen.Resok4
 			stateId := resok.Stateid

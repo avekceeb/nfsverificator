@@ -48,10 +48,20 @@ func BytesToUint32(b []byte) uint32 {
 	return r
 }
 
-func MakeGetAttrFlags(f ...int) uint32 {
-	r := uint32(0)
-	for i:=range f{
-		r |= (1<<uint32(f[i])) // ??
+func MakeGetAttrFlags(f ...int) []uint32 {
+	r := []uint32{0}
+	length := 1
+	for i := range f {
+		val := f[i]
+		slot := val/32
+		val = val % 32
+		if slot > length-1 {
+			for x:=0; x<=slot-length; x++ {
+				r = append(r, 0)
+			}
+			length = len(r)
+		}
+		r[slot] |= (1<<uint32(val)) // ??
 	}
 	return r
 }

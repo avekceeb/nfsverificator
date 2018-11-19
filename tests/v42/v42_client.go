@@ -308,7 +308,7 @@ func (cli *NFSv42Client) GetSomeAttr() {
 		Sequence(cli.Sid, cli.Seq, 0, 0, false),
 		Putrootfh(),
 		Getfh(),
-		Getattr([]uint32{MakeGetAttrFlags(FATTR4_LEASE_TIME)}))
+		Getattr(MakeGetAttrFlags(FATTR4_LEASE_TIME)))
 	cli.LeaseTime = BytesToUint32(LastRes(&l).Opgetattr.Resok4.ObjAttributes.AttrVals)
 	r := cli.Pass(
 		Sequence(cli.Sid, cli.Seq, 0, 0, false),

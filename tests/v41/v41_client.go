@@ -10,6 +10,7 @@ import (
 	. "github.com/avekceeb/nfsverificator/common"
     "github.com/onsi/ginkgo"
 	"strings"
+	"github.com/davecgh/go-spew/spew"
 )
 
 const (
@@ -126,6 +127,9 @@ func (cli *NFSv41Client) Close() {
 }
 
 func (cli *NFSv41Client) Compound(args ...NfsArgop4) (reply COMPOUND4res, err error) {
+	//fmt.Printf("%+v\n", args)
+	spew.Dump(args)
+	fmt.Println("--------------------")
 	res, err := cli.RpcClient.Call(CompoundMessage{
 		Head: rpc.Header{
 			Rpcvers: 2,
@@ -149,6 +153,7 @@ func (cli *NFSv41Client) Compound(args ...NfsArgop4) (reply COMPOUND4res, err er
 	}
 	// Parse reply at last
 	err = xdr.Read(res, &reply)
+	fmt.Printf("%+v\n---------------\n", reply)
 	if nil != err {
 		fmt.Printf("%s", err.Error())
 		return COMPOUND4res{Status:Nfs4ClientError}, err

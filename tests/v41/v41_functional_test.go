@@ -2,14 +2,15 @@ package v41tests
 
 import (
 	. "github.com/onsi/ginkgo"
- 	. "github.com/avekceeb/nfsverificator/v41"
+	. "github.com/avekceeb/nfsverificator/v41"
 	. "github.com/avekceeb/nfsverificator/common"
 	"time"
 	"math/rand"
+	"fmt"
 )
 
 /*
-	TODO: refer | migration
+   TODO: refer | migration
    When the EXCHGID4_FLAG_SUPP_MOVED_REFER flag bit is set, the client
    indicates that it is capable of dealing with an NFS4ERR_MOVED error
    as part of a referral sequence.
@@ -105,7 +106,8 @@ RFC 5661 Section 13.  NFSv4.1 as a Storage Protocol in pNFS: the File Layout Typ
 				/*FATTR4_LAYOUT_HINT,*/ FATTR4_LAYOUT_TYPES,
 				FATTR4_LAYOUT_BLKSIZE, FATTR4_LAYOUT_ALIGNMENT,
 				FATTR4_FS_LOCATIONS_INFO, FATTR4_MDSTHRESHOLD,
-				FATTR4_RETENTION_GET, /*FATTR4_RETENTION_SET,*/ FATTR4_RETENTEVT_GET,
+				FATTR4_RETENTION_GET, /*FATTR4_RETENTION_SET,*/
+				FATTR4_RETENTEVT_GET,
 				/*FATTR4_RETENTEVT_SET,*/ FATTR4_RETENTION_HOLD,
 				/*FATTR4_MODE_SET_MASKED,*/ FATTR4_FS_CHARSET_CAP,
 			}
@@ -116,6 +118,7 @@ RFC 5661 Section 13.  NFSv4.1 as a Storage Protocol in pNFS: the File Layout Typ
 				Putfh(globalDirFH),
 				Getattr(MakeGetAttrFlags(allAttrs...)))
 			for _,v := range allAttrs {
+				By(fmt.Sprintf("Trying Getattr with single %d attr", v))
 				c.Pass(c.SequenceArgs(),
 					Putfh(globalDirFH),
 					Getattr(MakeGetAttrFlags(v)))
@@ -137,7 +140,8 @@ RFC 5661 Section 13.  NFSv4.1 as a Storage Protocol in pNFS: the File Layout Typ
 			}
 			args = append(args, Getfh())
 			r := c.Pass(args...)
-			Assert(AreFhEqual(rootFH, LastRes(&r).Opgetfh.Resok4.Object), "Filehandle should be the same")
+			Assert(AreFhEqual(rootFH, LastRes(&r).Opgetfh.Resok4.Object),
+				"Filehandle should be the same")
 			By("Repeat with too many ops")
 			args[0] = c.SequenceArgs()
 			args = append(args, Putrootfh(), Savefh(), Restorefh())
@@ -212,7 +216,7 @@ RFC 5661 Section 13.  NFSv4.1 as a Storage Protocol in pNFS: the File Layout Typ
 				Putfh(rootFH),
 				Create(Createtype4{Type:NF4LNK, Linkdata:fileName}, linkName,
 					Fattr4{Attrmask:GetBitmap(FATTR4_MODE),
-                   		AttrVals: GetPermAttrList(0644)}))
+						AttrVals: GetPermAttrList(0644)}))
 			By("Ensure the link is present")
 			r := c.Pass(
 				c.SequenceArgs(), Putfh(rootFH), Lookup(linkName), Getfh())
@@ -308,44 +312,44 @@ RFC 5661 Section 13.  NFSv4.1 as a Storage Protocol in pNFS: the File Layout Typ
 			c.Pass(c.SequenceArgs(), Putfh(rootFH), Remove(fileName))
 		})
 
-        It("Lock/Test/Unlock (PyNFS::LOCK1,LKU1)", func() {
+		It("Lock/Test/Unlock (PyNFS::LOCK1,LKU1)", func() {
 			openArgs := c.OpenArgs()
 			fileName := openArgs.Opopen.Claim.File
-            r := c.Pass(
+			r := c.Pass(
 				c.SequenceArgs(),
 				Putfh(rootFH),
 				openArgs, Getfh())
 			resok := LastRes(&r).Opgetfh.Resok4
 			fh := resok.Object
 			sid := r[2].Opopen.Resok4.Stateid
-            c.Pass(
+			c.Pass(
 				c.SequenceArgs(),
 				Putfh(fh),
 				c.LockArgs(sid))
-            c.Fail(
+			c.Fail(
 				NFS4ERR_DENIED,
 				c.SequenceArgs(),
 				Putfh(fh),
 				c.LocktArgs("Other owner"))
-            c.Pass(c.SequenceArgs(),
+			c.Pass(c.SequenceArgs(),
 				Putfh(fh),
 				c.LocktArgs(c.Id))
 			c.Pass(c.SequenceArgs(),
 				Putfh(fh), c.LockuArgs(sid))
 			c.Pass(c.SequenceArgs(), Putfh(rootFH), Remove(fileName))
-        })
+		})
 
-        It("TODO: Lock/Unlock in one compound", func() {
+		It("TODO: Lock/Unlock in one compound", func() {
 			openArgs := c.OpenArgs()
 			fileName := openArgs.Opopen.Claim.File
-            r := c.Pass(
+			r := c.Pass(
 				c.SequenceArgs(),
 				Putfh(rootFH),
 				openArgs, Getfh())
 			resok := LastRes(&r).Opgetfh.Resok4
 			fh := resok.Object
 			sid := r[2].Opopen.Resok4.Stateid
-            c.Pass(
+			c.Pass(
 				c.SequenceArgs(),
 				Putfh(fh),
 				c.LockArgs(sid),
@@ -355,7 +359,7 @@ RFC 5661 Section 13.  NFSv4.1 as a Storage Protocol in pNFS: the File Layout Typ
 				c.LockuArgs(sid))
 			// TODO:
 			//sid = LastRes(&r).Oplocku.LockStateid
-            //c.Fail(NFS4ERR_OLD_STATEID,
+			//c.Fail(NFS4ERR_OLD_STATEID,
 				//c.SequenceArgs(),
 				//Putfh(fh),
 				//c.LockArgs(sid),
@@ -370,7 +374,7 @@ RFC 5661 Section 13.  NFSv4.1 as a Storage Protocol in pNFS: the File Layout Typ
 				//Putfh(fh),
 				//c.LockuArgs(sid))
 			c.Pass(c.SequenceArgs(), Putfh(rootFH), Remove(fileName))
-        })
+		})
 
 		It("DestroySession", func(){
 			newClient := NewNFSv41DefaultClient()
@@ -389,13 +393,13 @@ RFC 5661 Section 13.  NFSv4.1 as a Storage Protocol in pNFS: the File Layout Typ
 
 	Context("Slow", func() {
 
-        It("Session Expiration, Lock Release", func() {
+		It("Session Expiration, Lock Release", func() {
 			cliExpiring := NewNFSv41DefaultClient()
 			cliExpiring.ExchangeId()
 			cliExpiring.CreateSession()
 			cliExpiring.GetSomeAttr()
 
-            r := cliExpiring.Pass(
+			r := cliExpiring.Pass(
 				cliExpiring.SequenceArgs(),
 				Putfh(rootFH),
 				cliExpiring.OpenArgs(), Getfh())
@@ -415,17 +419,17 @@ RFC 5661 Section 13.  NFSv4.1 as a Storage Protocol in pNFS: the File Layout Typ
 				c.Pass(c.SequenceArgs())
 			}
 
-            c.Pass(
+			c.Pass(
 				c.SequenceArgs(),
 				Putfh(fh),
 				c.LocktArgs("Other Owner"))
 
-            cliExpiring.Fail(
+			cliExpiring.Fail(
 				NFS4ERR_BADSESSION,
 				cliExpiring.SequenceArgs(),
 			)
 			cliExpiring.Close()
-        })
+		})
 
 		It("CreateSession Timeout (PyNFS::EID9)", func() {
 			cliStale := NewNFSv41DefaultClient()

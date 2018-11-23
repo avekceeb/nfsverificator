@@ -10,7 +10,7 @@ import (
 	"github.com/avekceeb/nfsverificator/xdr"
 	. "github.com/avekceeb/nfsverificator/v42"
 	. "github.com/avekceeb/nfsverificator/common"
-    "github.com/onsi/ginkgo"
+	"github.com/onsi/ginkgo"
 )
 
 const (
@@ -203,6 +203,9 @@ func NewNFSv41Client(srvHost string, srvPort int, authHost string, uid uint32, g
 	client.AuthSys = AuthsysParms{
 		Stamp:u.Stamp, Uid:uid, Gid:gid, Machinename:authHost, GidLen:0}
 	var err error
+	if 0 == srvPort {
+		srvPort = 2049
+	}
 	client.RpcClient, err = rpc.DialService(srvHost, srvPort)
 	if err != nil {
 		panic(err.Error())

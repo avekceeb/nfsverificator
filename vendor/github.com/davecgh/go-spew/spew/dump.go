@@ -151,7 +151,7 @@ func (d *dumpState) dumpPtr(v reflect.Value) {
 
 	default:
 		d.ignoreNextType = true
-		d.dump(ve)
+		d.dump(ve, false, 0)
 	}
 	d.w.Write(closeParenBytes)
 }
@@ -235,7 +235,7 @@ func (d *dumpState) dumpSlice(v reflect.Value) {
 
 	// Recursively call dump for each item.
 	for i := 0; i < numEntries; i++ {
-		d.dump(d.unpackValue(v.Index(i)))
+		d.dump(d.unpackValue(v.Index(i)), false, 0)
 		if i < (numEntries - 1) {
 			d.w.Write(commaNewlineBytes)
 		} else {
@@ -248,7 +248,9 @@ func (d *dumpState) dumpSlice(v reflect.Value) {
 // value to figure out what kind of object we are dealing with and formats it
 // appropriately.  It is a recursive function, however circular data structures
 // are detected and handled properly.
-func (d *dumpState) dump(v reflect.Value) {
+func (d *dumpState) dump(v reflect.Value, inUnion bool, unionCase int32) {
+	newInUnion := false
+	var newUnionCase int32
 	// Handle invalid reflect values immediately.
 	kind := v.Kind()
 	if kind == reflect.Invalid {
@@ -311,8 +313,8 @@ func (d *dumpState) dump(v reflect.Value) {
 
 	switch kind {
 	case reflect.Invalid:
-		// Do nothing.  We should never get here since invalid has already
-		// been handled above.
+	// Do nothing.  We should never get here since invalid has already
+	// been handled above.
 
 	case reflect.Bool:
 		printBool(d.w, v.Bool())
@@ -366,8 +368,8 @@ func (d *dumpState) dump(v reflect.Value) {
 		}
 
 	case reflect.Ptr:
-		// Do nothing.  We should never get here since pointers have already
-		// been handled above.
+	// Do nothing.  We should never get here since pointers have already
+	// been handled above.
 
 	case reflect.Map:
 		// nil maps should be indicated as different than empty maps
@@ -388,10 +390,10 @@ func (d *dumpState) dump(v reflect.Value) {
 				sortValues(keys, d.cs)
 			}
 			for i, key := range keys {
-				d.dump(d.unpackValue(key))
+				d.dump(d.unpackValue(key), false, 0)
 				d.w.Write(colonSpaceBytes)
 				d.ignoreNextIndent = true
-				d.dump(d.unpackValue(v.MapIndex(key)))
+				d.dump(d.unpackValue(v.MapIndex(key)), false, 0)
 				if i < (numEntries - 1) {
 					d.w.Write(commaNewlineBytes)
 				} else {
@@ -413,12 +415,32 @@ func (d *dumpState) dump(v reflect.Value) {
 			vt := v.Type()
 			numFields := v.NumField()
 			for i := 0; i < numFields; i++ {
-				d.indent()
 				vtf := vt.Field(i)
+
+				tag := vtf.Tag
+				//d.w.Write([]byte(tag))
+				tg := tag.Get("xdr")
+				if "" != tg {
+					if "union" == tg {
+						newInUnion = true
+						vv := v.Field(i)
+						newUnionCase = vv.Interface().(int32)
+						//d.w.Write([]byte(fmt.Sprintf("!!! UNION = %d!!!", newUnionCase)))
+					} else if strings.HasPrefix(tg, "unioncase=") {
+						currentCase, e := strconv.ParseUint(strings.TrimPrefix(tg, "unioncase="), 10, 32)
+						//fmt.Println(" -> ", currentCase, " * ", newUnionCase)
+						if nil == e && newInUnion && (int32(currentCase) == newUnionCase) {
+							//d.w.Write([]byte("<<<CURRENT>>>"))
+						} else {
+							continue
+						}
+					}
+				}
+				d.indent()
 				d.w.Write([]byte(vtf.Name))
 				d.w.Write(colonSpaceBytes)
 				d.ignoreNextIndent = true
-				d.dump(d.unpackValue(v.Field(i)))
+				d.dump(d.unpackValue(v.Field(i)), newInUnion, newUnionCase)
 				if i < (numFields - 1) {
 					d.w.Write(commaNewlineBytes)
 				} else {
@@ -462,7 +484,7 @@ func fdump(cs *ConfigState, w io.Writer, a ...interface{}) {
 
 		d := dumpState{w: w, cs: cs}
 		d.pointers = make(map[uintptr]int)
-		d.dump(reflect.ValueOf(arg))
+		d.dump(reflect.ValueOf(arg), false, 0)
 		d.w.Write(newlineBytes)
 	}
 }

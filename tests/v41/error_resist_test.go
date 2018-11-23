@@ -2,7 +2,7 @@ package v41tests
 
 import (
 	. "github.com/onsi/ginkgo"
- 	. "github.com/avekceeb/nfsverificator/v41"
+	. "github.com/avekceeb/nfsverificator/v41"
 	. "github.com/avekceeb/nfsverificator/common"
 )
 

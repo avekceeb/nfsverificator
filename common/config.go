@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"os"
 	"flag"
-	"path/filepath"
 	"strings"
 	"time"
 	"fmt"
@@ -15,16 +14,14 @@ import (
 )
 
 var (
-    Config     TestConfig
-    ConfigFile string
-	bkgCmd     *exec.Cmd
-	funcMap    template.FuncMap
+	Config         TestConfig
+	ConfigFile     string
+	bkgCmd         *exec.Cmd
+	funcMap        template.FuncMap
 )
 
 func init() {
-    flag.StringVar(&ConfigFile, "config",
-        filepath.Join(os.Getenv("GOPATH"),
-        "src/github.com/avekceeb/nfsverificator/config.json"), "Config File")
+	flag.StringVar(&ConfigFile, "config", "", "Config File")
 	funcMap = template.FuncMap{"timestamp":timestamp, "homedir":homedir}
 }
 
@@ -43,6 +40,7 @@ type TestConfig struct {
 	DefaultServer string            `json:"default-server"`
 	Servers       map[string]Server `json:"servers"`
 	BkgCmd        string            `json:"background-cmd"`
+	Trace         bool              `json:"trace"`
 	SuiteName     string
 }
 

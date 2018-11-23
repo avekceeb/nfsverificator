@@ -68,8 +68,12 @@ func NewNFSv40Client(srvHost string, srvPort int, authHost string, uid uint32, g
 	client := NFSv40Client{}
 	u := rpc.NewAuthUnix(authHost, uid, gid)
 	client.Auth = u.Auth()
-	client.AuthSys = AuthsysParms{Stamp:u.Stamp, Uid:uid, Gid:gid, Machinename:authHost, GidLen:0}
+	client.AuthSys = AuthsysParms{
+		Stamp:u.Stamp, Uid:uid, Gid:gid, Machinename:authHost, GidLen:0}
 	var err error
+	if 0 == srvPort {
+		srvPort = 2049
+	}
 	client.RpcClient, err = rpc.DialService(srvHost, srvPort)
 	if err != nil {
 		panic(err.Error())

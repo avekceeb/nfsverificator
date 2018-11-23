@@ -1,11 +1,11 @@
 package v41tests
 
 import (
-    "testing"
-    "flag"
-    . "github.com/onsi/ginkgo"
-    . "github.com/avekceeb/nfsverificator/common"
+	"testing"
+	. "github.com/onsi/ginkgo"
+	. "github.com/avekceeb/nfsverificator/common"
 	. "github.com/avekceeb/nfsverificator/v41"
+	"flag"
 )
 
 const (
@@ -28,8 +28,8 @@ var (
 )
 
 func init() {
-    flag.Parse()
-    Config = ReadConfig(ConfigFile)
+	flag.Parse()
+	Config = ReadConfig(ConfigFile)
 	notExisting = "not-exists-" + RandString(16)
 	globalFile  = "global-" + RandString(16)
 	globalDir   = "global-" + RandString(16)
@@ -82,6 +82,6 @@ var _ = Describe("Before-After", func() {
 
 func TestSanity(t *testing.T) {
 	Config.SuiteName = SuiteName
-    RunSpecs(t, SuiteName)
+	RunSpecs(t, SuiteName)
 }
 

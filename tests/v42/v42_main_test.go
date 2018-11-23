@@ -1,19 +1,19 @@
 package v42tests
 
 import (
-    "testing"
-    "flag"
-    . "github.com/onsi/ginkgo"
-    . "github.com/avekceeb/nfsverificator/common"
+	"testing"
+	. "github.com/onsi/ginkgo"
+	. "github.com/avekceeb/nfsverificator/common"
+	"flag"
 )
 
 func init() {
-    flag.Parse()
-    Config = ReadConfig(ConfigFile)
+	flag.Parse()
+	Config = ReadConfig(ConfigFile)
 }
 
 func TestSanity(t *testing.T) {
-    Config.SuiteName = "NFSv4.2"
-    RunSpecs(t, "NFSv4.2")
+	Config.SuiteName = "NFSv4.2"
+	RunSpecs(t, "NFSv4.2")
 }
 

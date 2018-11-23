@@ -1938,7 +1938,7 @@ type LINK4res struct {
 
 
 type Locker4 struct {
-	NewLockOwner bool `xdr:"union"`
+	NewLockOwner int32 `xdr:"union"`
 	OpenOwner  OpenToLockOwner4  `xdr:"unioncase=1"` // True
 	LockOwner  ExistLockOwner4  `xdr:"unioncase=0"` // False
 }
@@ -2061,10 +2061,10 @@ type RENAME4res struct {
 	Resok4  RENAME4resok  `xdr:"unioncase=0"` // Ok
 }
 
-
+/* RPCSEC_GSS has a value of '6' - See RFC 2203 */
 type Secinfo4 struct {
-	Flavor uint32 `xdr:"union"`
-	FlavorInfo  RpcsecGssInfo  `xdr:"unioncase=RPCSEC_GSS"` // Gss
+	Flavor int32 `xdr:"union"`
+	FlavorInfo  RpcsecGssInfo  `xdr:"unioncase=6"` // Gss
 }
 
 
@@ -2088,7 +2088,7 @@ type WRITE4res struct {
 
 
 type CallbackSecParms4 struct {
-	CbSecflavor uint32 `xdr:"union"`
+	CbSecflavor int32 `xdr:"union"`
 	//    `xdr:"unioncase=AUTH_NONE"` // None
 	CbspSysCred  AuthsysParms  `xdr:"unioncase=1"` // Sys
 	CbspGssHandles  GssCbHandles4  `xdr:"unioncase=2"` // Gss
@@ -2156,21 +2156,21 @@ type GETDEVICELIST4res struct {
 
 
 type Newtime4 struct {
-	NtTimechanged bool `xdr:"union"`
+	NtTimechanged int32 `xdr:"union"`
 	NtTime  Nfstime4  `xdr:"unioncase=TRUE"` // True
 	//    `xdr:"unioncase=FALSE"` // False
 }
 
 
 type Newoffset4 struct {
-	NoNewoffset bool `xdr:"union"`
+	NoNewoffset int32 `xdr:"union"`
 	NoOffset  uint64  `xdr:"unioncase=TRUE"` // True
 	//    `xdr:"unioncase=FALSE"` // False
 }
 
 
 type Newsize4 struct {
-	NsSizechanged bool `xdr:"union"`
+	NsSizechanged int32 `xdr:"union"`
 	NsSize  uint64  `xdr:"unioncase=TRUE"` // True
 	//    `xdr:"unioncase=FALSE"` // False
 }
@@ -2190,7 +2190,7 @@ type LAYOUTGET4res struct {
 
 
 type LayoutreturnStateid struct {
-	LrsPresent bool `xdr:"union"`
+	LrsPresent int32 `xdr:"union"`
 	LrsStateid  Stateid4  `xdr:"unioncase=TRUE"` // True
 	//    `xdr:"unioncase=FALSE"` // False
 }

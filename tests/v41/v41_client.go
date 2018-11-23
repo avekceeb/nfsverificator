@@ -8,7 +8,7 @@ import (
 	"github.com/avekceeb/nfsverificator/xdr"
 	. "github.com/avekceeb/nfsverificator/v41"
 	. "github.com/avekceeb/nfsverificator/common"
-    "github.com/onsi/ginkgo"
+	"github.com/onsi/ginkgo"
 	"strings"
 	"github.com/davecgh/go-spew/spew"
 )
@@ -127,9 +127,18 @@ func (cli *NFSv41Client) Close() {
 }
 
 func (cli *NFSv41Client) Compound(args ...NfsArgop4) (reply COMPOUND4res, err error) {
-	//fmt.Printf("%+v\n", args)
-	spew.Dump(args)
-	fmt.Println("--------------------")
+
+	/*
+		tracing here (not in rpc client) because
+		we are not interested im rpc header
+		and reply casted to compound res here
+	 */
+	if (Config.Trace) {
+		fmt.Println()
+		fmt.Println(">>>>>>>>>>>>>>>>>>>>")
+		spew.Dump(args)
+	}
+
 	res, err := cli.RpcClient.Call(CompoundMessage{
 		Head: rpc.Header{
 			Rpcvers: 2,
@@ -153,7 +162,13 @@ func (cli *NFSv41Client) Compound(args ...NfsArgop4) (reply COMPOUND4res, err er
 	}
 	// Parse reply at last
 	err = xdr.Read(res, &reply)
-	fmt.Printf("%+v\n---------------\n", reply)
+
+	if (Config.Trace) {
+		fmt.Println()
+		fmt.Println("<<<<<<<<<<<<<<<<<<<<")
+		spew.Dump(reply)
+	}
+
 	if nil != err {
 		fmt.Printf("%s", err.Error())
 		return COMPOUND4res{Status:Nfs4ClientError}, err
@@ -163,13 +178,6 @@ func (cli *NFSv41Client) Compound(args ...NfsArgop4) (reply COMPOUND4res, err er
 			cli.Seq++
 		}
 	}
-
-	//for _, a := range args {
-    //    if a.Argop == OP_SEQUENCE { // TODO: other ops?
-		//	cli.Seq++
-		//	break
-    //    }
-    //}
 	return reply, nil
 }
 
@@ -204,6 +212,9 @@ func NewNFSv41Client(srvHost string, srvPort int, authHost string, uid uint32, g
 	client.AuthSys = AuthsysParms{
 		Stamp:u.Stamp, Uid:uid, Gid:gid, Machinename:authHost, GidLen:0}
 	var err error
+	if 0 == srvPort {
+		srvPort = 2049
+	}
 	client.RpcClient, err = rpc.DialService(srvHost, srvPort)
 	if err != nil {
 		panic(err.Error())
@@ -241,17 +252,18 @@ func (t *NFSv41Client) Fail(stat int32, args ...NfsArgop4) ([]NfsResop4) {
 
 /// TODO: this could not handle unexported 'holes' in path
 func (t *NFSv41Client) LookupFromRoot(path string) (fh NfsFh4) {
-    ret := t.Pass(
+	ret := t.Pass(
 		Sequence(t.Sid, t.Seq, 0, 0, false), Putrootfh(), Getfh())
-    fh = LastRes(&ret).Opgetfh.Resok4.Object
-    for _, k := range strings.Split(path, "/") {
-        if "" == k {
-            continue
-        }
-        ret = t.Pass(Sequence(t.Sid, t.Seq, 0, 0, false), Putfh(fh), Lookup(k), Getfh())
-        fh = LastRes(&ret).Opgetfh.Resok4.Object
-    }
-    return fh
+	fh = LastRes(&ret).Opgetfh.Resok4.Object
+	for _, k := range strings.Split(path, "/") {
+		if "" == k {
+			continue
+		}
+		ret = t.Pass(
+			Sequence(t.Sid, t.Seq, 0, 0, false), Putfh(fh), Lookup(k), Getfh())
+		fh = LastRes(&ret).Opgetfh.Resok4.Object
+	}
+	return fh
 }
 
 func (cli *NFSv41Client) ExchangeId() {
@@ -302,17 +314,16 @@ SEQUENCE, MUST use the same value of csa_sequence as the original.
 	cli.Sid = resok.CsrSessionid
 	// TODO: now only fore channel
 	cli.ForeChAttr = resok.CsrForeChanAttrs
-	/*
+
+/*
    Once the session is created, the first SEQUENCE or CB_SEQUENCE
    received on a slot MUST have a sequence ID equal to 1; if not, the
    replier MUST return NFS4ERR_SEQ_MISORDERED.
 
-	BTW, Linux disregards this
+   BTW, Linux disregards this
 
  */
-
 	cli.Seq = 1
-
 	cli.Pass(
 		Sequence(cli.Sid, cli.Seq, 0, 0, false),
 		ReclaimComplete(false))
@@ -333,8 +344,9 @@ func (cli *NFSv41Client) GetSomeAttr() {
 	r := cli.Pass(
 		Sequence(cli.Sid, cli.Seq, 0, 0, false),
 		Putrootfh(),
-		Access(MakeUint32Flags(ACCESS4_DELETE, ACCESS4_EXTEND, ACCESS4_LOOKUP, ACCESS4_MODIFY,
-			ACCESS4_READ, ACCESS4_EXECUTE)),
+		Access(MakeUint32Flags(
+			ACCESS4_DELETE, ACCESS4_EXTEND, ACCESS4_LOOKUP,
+			ACCESS4_MODIFY,	ACCESS4_READ, ACCESS4_EXECUTE)),
 	)
 	access := LastRes(&r).Opaccess.Resok4.Access
 	cli.DL = CheckFlag(access, ACCESS4_DELETE)
@@ -379,30 +391,30 @@ func (t *NFSv41Client) OpenArgs() NfsArgop4 {
 	return Open(t.Seq,
 			OPEN4_SHARE_ACCESS_WRITE,
 			OPEN4_SHARE_DENY_NONE,
-            OpenOwner4{
+			OpenOwner4{
 				Clientid: t.ClientId,
 				Owner: t.Id},
-            Openflag4{
+			Openflag4{
 				Opentype: OPEN4_CREATE,
-                How: Createhow4{
+				How: Createhow4{
 					Mode: UNCHECKED4,
-                    CreateattrsUnchecked: Fattr4{
+					CreateattrsUnchecked: Fattr4{
 						Attrmask: GetBitmap(FATTR4_MODE),
 						AttrVals: GetPermAttrList(0644)},
-                },
+				},
 			},
-            OpenClaim4{Claim:CLAIM_NULL, File: RandString(12)})
+			OpenClaim4{Claim:CLAIM_NULL, File: RandString(12)})
 }
 
 func (t *NFSv41Client) OpenNoCreateArgs() NfsArgop4 {
 	return Open(t.Seq,
 			OPEN4_SHARE_ACCESS_READ,
 			OPEN4_SHARE_DENY_NONE,
-            OpenOwner4{
+			OpenOwner4{
 				Clientid: t.ClientId,
 				Owner: t.Id},
-            Openflag4{Opentype: OPEN4_NOCREATE},
-            OpenClaim4{Claim:CLAIM_NULL, File: RandString(12)})
+			Openflag4{Opentype: OPEN4_NOCREATE},
+			OpenClaim4{Claim:CLAIM_NULL, File: RandString(12)})
 }
 
 func (t *NFSv41Client) LockArgs(stateId Stateid4) NfsArgop4 {
@@ -412,7 +424,7 @@ func (t *NFSv41Client) LockArgs(stateId Stateid4) NfsArgop4 {
 				0, /*offset*/
 				0xffffffffffffffff, /*length*/
 				Locker4{
-					NewLockOwner:true,
+					NewLockOwner:1,
 					OpenOwner: OpenToLockOwner4{
 						OpenSeqid: t.Seq,
 						OpenStateid: stateId,
@@ -423,7 +435,9 @@ func (t *NFSv41Client) LockArgs(stateId Stateid4) NfsArgop4 {
 }
 
 func (t *NFSv41Client) LocktArgs(owner string) (NfsArgop4) {
-    return Lockt(WRITE_LT, 0, 0xffffffffffffffff, LockOwner4{Clientid: t.ClientId, Owner: owner})
+	return Lockt(
+		WRITE_LT, 0, 0xffffffffffffffff, LockOwner4{
+			Clientid: t.ClientId, Owner: owner})
 }
 
 /*
@@ -440,5 +454,5 @@ func (t *NFSv41Client) LockuArgs(sid Stateid4) (NfsArgop4) {
 func (t *NFSv41Client) CreateArgs(name string) (NfsArgop4) {
 	return Create(Createtype4{Type:NF4DIR},	name,
 			Fattr4{Attrmask:GetBitmap(FATTR4_MODE),
-                   AttrVals: GetPermAttrList(0777)})
+					AttrVals: GetPermAttrList(0777)})
 }

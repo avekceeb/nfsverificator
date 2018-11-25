@@ -28,10 +28,29 @@ https://www.ietf.org/mail-archive/web/nfsv4/current/msg00919.html
 https://wiki.linux-nfs.org/wiki/index.php/NFS_Recovery_and_Client_Migration
  */
 
+
 var _ = Describe("Functional", func() {
 
 	Context("Basic", func() {
 
+		It("Refer Option", func() {
+			if ! CheckFlag(c.EidFlags, EXCHGID4_FLAG_SUPP_MOVED_REFER) {
+				Skip("Server does not support EXCHGID4_FLAG_SUPP_MOVED_REFER")
+			}
+			// TODO: put refer path to config
+			c.Fail(NFS4ERR_MOVED,
+				c.SequenceArgs(),
+				Putfh(rootFH),
+				Lookup("ref"),
+				Getfh())
+			//fh := GrabFh(&r)
+			c.Pass(c.SequenceArgs(),
+				Putfh(rootFH),
+				Lookup("ref"),
+				Getattr(MakeGetAttrFlags(
+					FATTR4_FS_LOCATIONS)))
+			// ??? FATTR4_FS_LOCATIONS_INFO,
+		})
 /* TODO:
 RFC 5661 Section 13.  NFSv4.1 as a Storage Protocol in pNFS: the File Layout Type
 
@@ -123,6 +142,54 @@ RFC 5661 Section 13.  NFSv4.1 as a Storage Protocol in pNFS: the File Layout Typ
 					Putfh(globalDirFH),
 					Getattr(MakeGetAttrFlags(v)))
 			}
+		})
+
+		/* TODO:
+   One possible use of the VERIFY operation is the following COMPOUND
+   sequence.  With this, the client is attempting to verify that the
+   file being removed will match what the client expects to be removed.
+   This sequence can help prevent the unintended deletion of a file.
+
+     PUTFH (directory filehandle)
+     LOOKUP (filename)
+     VERIFY (filehandle == fh)
+     PUTFH (directory filehandle)
+     REMOVE (filename)
+
+   This sequence does not prevent a second client from removing and
+   creating a new file in the middle of this sequence, but it does help
+   avoid the unintended result.
+		 */
+
+		It("NVerify (PyNFS::NVF1r,NVF2r)", func(){
+			r := c.Pass(c.SequenceArgs(),
+				Putfh(globalFileFH),
+				Getattr(MakeGetAttrFlags(
+					FATTR4_SUPPORTED_ATTRS,
+					FATTR4_TYPE, FATTR4_FH_EXPIRE_TYPE,
+					FATTR4_CHANGE, FATTR4_SIZE, FATTR4_LINK_SUPPORT,
+					FATTR4_NAMED_ATTR, FATTR4_FSID, FATTR4_UNIQUE_HANDLES,
+					FATTR4_LEASE_TIME, FATTR4_FILEHANDLE)))
+			attrs := LastRes(&r).Opgetattr.Resok4.ObjAttributes
+			By("Nverify should return `Same` error for pre-read attrs")
+			c.Fail(NFS4ERR_SAME,
+				c.SequenceArgs(),
+				Putfh(globalFileFH),
+				Nverify(attrs),
+				Lookup(RandString(5)), Lookup(RandString(5)))
+			attrFileType := Fattr4{Attrmask:MakeGetAttrFlags(FATTR4_TYPE),
+				AttrVals:[]byte{0,0,0,byte(NF4REG)}}
+			By("Nverify should return `Same` error for one attr type")
+			c.Fail(NFS4ERR_SAME,
+				c.SequenceArgs(),
+				Putfh(globalFileFH),
+				Nverify(attrFileType),
+				Lookup(RandString(5)), Lookup(RandString(5)))
+			By("Nverify should return OK because attr dir != attr file")
+			c.Pass(c.SequenceArgs(),
+				Putfh(rootFH),
+				Nverify(attrFileType),
+				Lookup(globalFile))
 		})
 
 		It("Lokupp", func(){
@@ -235,7 +302,7 @@ RFC 5661 Section 13.  NFSv4.1 as a Storage Protocol in pNFS: the File Layout Typ
 				Putfh(rootFH),
 				openArgs,
 				Getfh())
-			fh := r[3].Opgetfh.Resok4.Object
+			fh := GrabFh(&r)
 			By("Create link to file")
 			c.Pass(c.SequenceArgs(),
 				Putfh(fh),
@@ -291,7 +358,7 @@ RFC 5661 Section 13.  NFSv4.1 as a Storage Protocol in pNFS: the File Layout Typ
 			//if ! CheckFlag(resok.Rflags, OPEN4_RESULT_MAY_NOTIFY_LOCK) {
 			//	fmt.Println("TODO: Server does not Notify Lock Call")
 			//}
-			fh := LastRes(&r).Opgetfh.Resok4.Object
+			fh := GrabFh(&r)
 			By("Write to file")
 			r = c.Pass(
 				c.SequenceArgs(), Putfh(fh),
@@ -322,10 +389,13 @@ RFC 5661 Section 13.  NFSv4.1 as a Storage Protocol in pNFS: the File Layout Typ
 			resok := LastRes(&r).Opgetfh.Resok4
 			fh := resok.Object
 			sid := r[2].Opopen.Resok4.Stateid
-			c.Pass(
+			r = c.Pass(
 				c.SequenceArgs(),
 				Putfh(fh),
 				c.LockArgs(sid))
+			// ganesha does not require new sid to unlock
+			// but linux does
+			sid = LastRes(&r).Oplock.Resok4.LockStateid
 			c.Fail(
 				NFS4ERR_DENIED,
 				c.SequenceArgs(),
@@ -340,6 +410,7 @@ RFC 5661 Section 13.  NFSv4.1 as a Storage Protocol in pNFS: the File Layout Typ
 		})
 
 		It("TODO: Lock/Unlock in one compound", func() {
+			Skip("TODO: diffrent results on linux vs ganesha: NFS4ERR_BAD_STATEID vs pass")
 			openArgs := c.OpenArgs()
 			fileName := openArgs.Opopen.Claim.File
 			r := c.Pass(

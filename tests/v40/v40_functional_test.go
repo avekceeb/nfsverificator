@@ -4,6 +4,7 @@ import (
     . "github.com/onsi/ginkgo"
 	. "github.com/avekceeb/nfsverificator/v40"
 	. "github.com/avekceeb/nfsverificator/common"
+	"time"
 )
 
 var (
@@ -60,6 +61,11 @@ var _ = Describe("Functional", func() {
             c.Fail(NFS4ERR_NOFILEHANDLE, Getfh())
         })
 
+		It("Renew Op (PyNFS::RENEW1,2)", func(){
+			c.Pass(Renew(c.ClientId))
+			c.Fail(NFS4ERR_STALE_CLIENTID, Renew(0))
+		})
+
 		It("Look dots", func() {
 			dir := RandString(8)
 			fh := c.CreateDir(rootFH, dir, 0777)
@@ -94,6 +100,36 @@ var _ = Describe("Functional", func() {
 					Clientid: c.ClientId, Owner: "Other Owner"}))
         })
 
+	})
+
+
+	Context("Slow", func() {
+
+		It("Renew expired (PyNFS::RENEW3)", func() {
+			cliExpiring := NewNFSv40Client(
+				Config.GetHost(), Config.GetPort(),
+				RandString(8)+".fake.net", 0, 0, RandString(8))
+			r := c.Pass(Setclientid(cliExpiring.GetClientID(),
+				cliExpiring.GetCallBack(), 1))
+			cliExpiring.ClientId = r[0].Opsetclientid.Resok4.Clientid
+			cliExpiring.Verifier = r[0].Opsetclientid.Resok4.SetclientidConfirm
+			cliExpiring.Pass(SetclientidConfirm(cliExpiring.ClientId,
+				cliExpiring.Verifier))
+			cliExpiring.Pass(Renew(cliExpiring.ClientId))
+			By("pinging server in default client and abandon in cliExpiring")
+			// supposing LeaseTime is the same
+			interval := time.Second * time.Duration(90 / 6)
+			for i:=0;i<7;i++ {
+				time.Sleep(interval)
+				c.Pass(Renew(c.ClientId))
+			}
+			c.Pass(Putrootfh(), Getfh())
+			cliExpiring.Fail(
+				NFS4ERR_EXPIRED,
+				Renew(cliExpiring.ClientId))
+			cliExpiring.Close()
+		})
 
 	})
+
 })

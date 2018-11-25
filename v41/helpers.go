@@ -123,3 +123,20 @@ func AreFhEqual(a, b NfsFh4) bool {
     }
     return true
 }
+
+func Uint64ToVerifier(r uint64) (Verifier4) {
+	return Verifier4{
+		byte(r & 0xff), byte((r & 0xff00) >> 8),
+		byte((r & 0xff0000) >> 16), byte((r & 0xff000000) >> 24),
+		byte((r & 0xff000000) >> 32), byte((r & 0xff0000000000) >> 40),
+		byte((r & 0xff000000000000) >> 48), byte((r & 0xff00000000000000) >> 56),
+	}
+}
+
+func LastRes(res *([]NfsResop4)) (*NfsResop4) {
+	return &((*res)[len(*res)-1])
+}
+
+func GrabFh(res *([]NfsResop4)) (NfsFh4) {
+	return LastRes(res).Opgetfh.Resok4.Object
+}

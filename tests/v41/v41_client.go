@@ -42,6 +42,7 @@ var (
 
 /**********************************************
 	Minimalist Assertion infrastructure
+	TODO: duplication of v4 v4.1 v4.2
 ***********************************************/
 
 func Assert(condition bool, errMessage string) {
@@ -65,21 +66,6 @@ func AssertNoErr(err error) {
 		ginkgo.Fail(fmt.Sprintf(
 			"Unexpected error: %s", err.Error()))
 	}
-}
-
-////////// helpers ///////////////
-
-func Uint64ToVerifier(r uint64) (Verifier4) {
-	return Verifier4{
-		byte(r & 0xff), byte((r & 0xff00) >> 8),
-		byte((r & 0xff0000) >> 16), byte((r & 0xff000000) >> 24),
-		byte((r & 0xff000000) >> 32), byte((r & 0xff0000000000) >> 40),
-		byte((r & 0xff000000000000) >> 48), byte((r & 0xff00000000000000) >> 56),
-	}
-}
-
-func LastRes(res *([]NfsResop4)) (*NfsResop4) {
-	return &((*res)[len(*res)-1])
 }
 
 //////////////////////////////////
@@ -110,6 +96,8 @@ type NFSv41Client struct {
 	Server         string
 	// TODO:
 	LeaseTime      uint32
+	sentNum        uint32
+	recvNum        uint32
 	DL             bool
 	XT             bool
 	LU             bool
@@ -127,7 +115,6 @@ func (cli *NFSv41Client) Close() {
 }
 
 func (cli *NFSv41Client) Compound(args ...NfsArgop4) (reply COMPOUND4res, err error) {
-
 	/*
 		tracing here (not in rpc client) because
 		we are not interested im rpc header
@@ -135,7 +122,9 @@ func (cli *NFSv41Client) Compound(args ...NfsArgop4) (reply COMPOUND4res, err er
 	 */
 	if (Config.Trace) {
 		fmt.Println()
-		fmt.Println(">>>>>>>>>>>>>>>>>>>>")
+		fmt.Println("#", cli.sentNum, Tm(),
+			">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+		fmt.Println()
 		spew.Dump(args)
 	}
 
@@ -162,13 +151,15 @@ func (cli *NFSv41Client) Compound(args ...NfsArgop4) (reply COMPOUND4res, err er
 	}
 	// Parse reply at last
 	err = xdr.Read(res, &reply)
-
+	cli.recvNum++
 	if (Config.Trace) {
 		fmt.Println()
-		fmt.Println("<<<<<<<<<<<<<<<<<<<<")
+		fmt.Println("#", cli.recvNum, Tm(),
+			"<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+		fmt.Println()
 		spew.Dump(reply)
 	}
-
+	cli.sentNum++
 	if nil != err {
 		fmt.Printf("%s", err.Error())
 		return COMPOUND4res{Status:Nfs4ClientError}, err

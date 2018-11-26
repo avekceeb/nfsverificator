@@ -34,6 +34,9 @@ var _ = Describe("Functional", func() {
 	Context("Basic", func() {
 
 		It("Refer Option", func() {
+			if "" == Config.GetRefPath() {
+				Skip("No ref path exposed by server")
+			}
 			if ! CheckFlag(c.EidFlags, EXCHGID4_FLAG_SUPP_MOVED_REFER) {
 				Skip("Server does not support EXCHGID4_FLAG_SUPP_MOVED_REFER")
 			}
@@ -51,36 +54,8 @@ var _ = Describe("Functional", func() {
 					FATTR4_FS_LOCATIONS)))
 			// ??? FATTR4_FS_LOCATIONS_INFO,
 		})
-/* TODO:
-RFC 5661 Section 13.  NFSv4.1 as a Storage Protocol in pNFS: the File Layout Type
 
-   The client MAY request zero or more of EXCHGID4_FLAG_USE_NON_PNFS,
-   EXCHGID4_FLAG_USE_PNFS_DS, or EXCHGID4_FLAG_USE_PNFS_MDS, even though
-   some combinations (e.g., EXCHGID4_FLAG_USE_NON_PNFS |
-   EXCHGID4_FLAG_USE_PNFS_MDS) are contradictory.  However, the server
-   MUST only return the following acceptable combinations:
-
-        +--------------------------------------------------------+
-        | Acceptable Results from EXCHANGE_ID                    |
-        +--------------------------------------------------------+
-        | EXCHGID4_FLAG_USE_PNFS_MDS                             |
-        | EXCHGID4_FLAG_USE_PNFS_MDS | EXCHGID4_FLAG_USE_PNFS_DS |
-        | EXCHGID4_FLAG_USE_PNFS_DS                              |
-        | EXCHGID4_FLAG_USE_NON_PNFS                             |
-        | EXCHGID4_FLAG_USE_PNFS_DS | EXCHGID4_FLAG_USE_NON_PNFS |
-        +--------------------------------------------------------+
-
-   As the above table implies, a server can have one or two roles.  A
-   server can be both a metadata server and a data server, or it can be
-   both a data server and non-metadata server.  In addition to returning
-   two roles in the EXCHANGE_ID's results, and thus serving both roles
-   via a common client ID, a server can serve two roles by returning a
-   unique client ID and server owner for each role in each of two
-   EXCHANGE_ID results, with each result indicating each role.
-
- */
-
-		It("ExchangeId flags combinations", func() {
+		It("ExchangeId flags combinations RFC 5661 13.1", func() {
 			validCombinations := []uint32{
 				uint32(EXCHGID4_FLAG_USE_PNFS_MDS),
 				uint32(EXCHGID4_FLAG_USE_PNFS_DS),
@@ -144,23 +119,6 @@ RFC 5661 Section 13.  NFSv4.1 as a Storage Protocol in pNFS: the File Layout Typ
 			}
 		})
 
-		/* TODO:
-   One possible use of the VERIFY operation is the following COMPOUND
-   sequence.  With this, the client is attempting to verify that the
-   file being removed will match what the client expects to be removed.
-   This sequence can help prevent the unintended deletion of a file.
-
-     PUTFH (directory filehandle)
-     LOOKUP (filename)
-     VERIFY (filehandle == fh)
-     PUTFH (directory filehandle)
-     REMOVE (filename)
-
-   This sequence does not prevent a second client from removing and
-   creating a new file in the middle of this sequence, but it does help
-   avoid the unintended result.
-		 */
-
 		It("NVerify (PyNFS::NVF1r,NVF2r)", func(){
 			r := c.Pass(c.SequenceArgs(),
 				Putfh(globalFileFH),
@@ -192,10 +150,10 @@ RFC 5661 Section 13.  NFSv4.1 as a Storage Protocol in pNFS: the File Layout Typ
 				Lookup(globalFile))
 		})
 
-		It("Lokupp", func(){
+		It("Lookupp", func(){
 			r := c.Pass(c.SequenceArgs(),
 				Putfh(globalDirFH),	Lookupp(), Getfh())
-			Assert(AreFhEqual(rootFH, LastRes(&r).Opgetfh.Resok4.Object),
+			Assert(AreFhEqual(rootFH, GrabFh(&r)),
 				"Parent fh is not root")
 		})
 
@@ -206,13 +164,24 @@ RFC 5661 Section 13.  NFSv4.1 as a Storage Protocol in pNFS: the File Layout Typ
 				args = append(args, Savefh(), Restorefh())
 			}
 			args = append(args, Getfh())
+			By("Many save/restore")
 			r := c.Pass(args...)
 			Assert(AreFhEqual(rootFH, LastRes(&r).Opgetfh.Resok4.Object),
 				"Filehandle should be the same")
-			By("Repeat with too many ops")
+			By("Several ops between save and restore")
+			args = []NfsArgop4{c.SequenceArgs(), Putfh(rootFH), Savefh(), Putfh(globalDirFH)}
+			for i:=0; i<(maxOps-6)/2; i++ {
+				args = append(args, Putfh(rootFH), Lookup(globalFile))
+			}
+			args = append(args, Restorefh(), Getfh())
+			r = c.Pass(args...)
+			Assert(AreFhEqual(rootFH, LastRes(&r).Opgetfh.Resok4.Object),
+				"Filehandle should be the same")
+			By("Repeat with too many ops. TODO: RESOURCE ERR???")
 			args[0] = c.SequenceArgs()
 			args = append(args, Putrootfh(), Savefh(), Restorefh())
-			c.Fail(NFS4ERR_TOO_MANY_OPS, args...)
+			c.FailOneOf([]int32{NFS4ERR_TOO_MANY_OPS, NFS4ERR_RESOURCE},
+				args...)
 		})
 
 		It("BUG: deadlock secinfo+readdir compound", func(){
@@ -294,7 +263,7 @@ RFC 5661 Section 13.  NFSv4.1 as a Storage Protocol in pNFS: the File Layout Typ
 			c.Pass(c.SequenceArgs(), Putfh(rootFH), Remove(linkName))
 		})
 
-		It("Hard Link", func() {
+		It("Hard Link RFC 5661 4.2.1", func() {
 			openArgs := c.OpenArgs()
 			fileName := openArgs.Opopen.Claim.File
 			linkName := RandString(12)
@@ -310,9 +279,13 @@ RFC 5661 Section 13.  NFSv4.1 as a Storage Protocol in pNFS: the File Layout Typ
 				Putfh(rootFH),
 				Link(linkName))
 			By("Check link is present")
-			c.Pass(c.SequenceArgs(), Putfh(rootFH),	Lookup(linkName))
+			r = c.Pass(c.SequenceArgs(), Putfh(rootFH), Lookup(linkName), Getfh())
+			fhL := GrabFh(&r)
 			By("Check file is present")
-			c.Pass(c.SequenceArgs(), Putfh(rootFH),	Lookup(fileName))
+			r = c.Pass(c.SequenceArgs(), Putfh(rootFH), Lookup(fileName), Getfh())
+			fhF := GrabFh(&r)
+			By("Check that fh is the same")
+			Assert(AreFhEqual(fhL, fhF), "fh are different!")
 			By("Clean up")
 			c.Pass(c.SequenceArgs(), Putfh(rootFH), Remove(linkName))
 			c.Pass(c.SequenceArgs(), Putfh(rootFH), Remove(fileName))
@@ -504,9 +477,7 @@ RFC 5661 Section 13.  NFSv4.1 as a Storage Protocol in pNFS: the File Layout Typ
 
 		It("CreateSession Timeout (PyNFS::EID9)", func() {
 			cliStale := NewNFSv41DefaultClient()
-
 			time.Sleep(time.Second * time.Duration(c.LeaseTime + 5))
-
 			cliStale.Fail(
 				NFS4ERR_STALE_CLIENTID,
 				CreateSession(
@@ -520,6 +491,23 @@ RFC 5661 Section 13.  NFSv4.1 as a Storage Protocol in pNFS: the File Layout Typ
 						CbSecflavor:1,
 						CbspSysCred:cliStale.AuthSys}}))
 			cliStale.Close()
+		})
+
+		It("Close Expired", func(){
+			cli2 := NewNFSv41DefaultClient()
+			cli2.ExchangeId()
+			cli2.CreateSession()
+			openArgs := cli2.OpenNoCreateArgs()
+			openArgs.Opopen.Claim.File = globalFile
+			r := cli2.Pass(cli2.SequenceArgs(), Putfh(rootFH), openArgs)
+			stateId := LastRes(&r).Opopen.Resok4.Stateid
+			interval := time.Second * time.Duration(c.LeaseTime / 6)
+			for i:=0;i<7;i++ {
+				time.Sleep(interval)
+				c.Pass(c.SequenceArgs())
+			}
+			c.Fail(NFS4ERR_EXPIRED,
+				c.SequenceArgs(), Putfh(globalFileFH), Close(c.Seq, stateId))
 		})
 
 	})

@@ -9,6 +9,7 @@ Based on github.com/vmware/go-nfs-client using github.com/rasky/go-xdr/xdr2
 
 #### Install Ginkgo
 	go get github.com/onsi/ginkgo/ginkgo
+	# TODO: this is no longer needed
 	go get github.com/onsi/gomega/...
 	cd ${GOPATH}/src/github.com/onsi/ginkgo/ginkgo
 	go install
@@ -31,4 +32,5 @@ Based on github.com/vmware/go-nfs-client using github.com/rasky/go-xdr/xdr2
 - check if NFS4ERR_GRACE before suite?
 - coverage (or at least nfsstat)
 - config entries for refer option
-- create FailMany for the case when several err codes are 'valid'
+- trace: print crc32 for fh
+- wipe out inUnion from spew::dump

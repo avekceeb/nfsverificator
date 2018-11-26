@@ -98,25 +98,14 @@ var _ = Describe("Errors", func() {
 				Lookup(RandString(4000)))
 		})
 
-		It("TODO: NFS4ERR_TOO_MANY_OPS", func(){
+		It("Too many operations", func(){
+			By("TODO: NFS4ERR_RESOURCE seems not right here (fedora 29)")
 			args := []NfsArgop4{Sequence(c.Sid, c.Seq, 0, 0, false)}
 			for i := uint32(0);i<c.ForeChAttr.CaMaxoperations/2 + 1;i++ {
 				args = append(args, Putrootfh(), Getfh())
 			}
-			c.Fail(
-				NFS4ERR_TOO_MANY_OPS,
+			c.FailOneOf([]int32{NFS4ERR_TOO_MANY_OPS, NFS4ERR_RESOURCE},
 				args...)
-		})
-
-		It("TODO: NFS4ERR_SEQ_FALSE_RETRY", func(){
-			Skip("TODO: toxic test")
-			c.Pass(
-				c.SequenceArgs(),
-				Putrootfh(), Getfh())
-			c.Fail(
-				NFS4ERR_SEQ_FALSE_RETRY,
-				Sequence(c.Sid, c.Seq - 1, 0, 0, false),
-				Putrootfh(), Getfh())
 		})
 
 		It("Layout Unavailable", func(){

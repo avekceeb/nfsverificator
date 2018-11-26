@@ -1,16 +1,16 @@
 package v40tests
 
 import (
-    . "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo"
 	. "github.com/avekceeb/nfsverificator/v40"
 	. "github.com/avekceeb/nfsverificator/common"
 	"time"
 )
 
 var (
-    c *NFSv40Client
-    export string
-    rootFH NfsFh4
+	c *NFSv40Client
+	export string
+	rootFH NfsFh4
 )
 
 var _ = Describe("Functional", func() {
@@ -43,23 +43,17 @@ var _ = Describe("Functional", func() {
 		//	//}
 		//})
 
-        //It("Same FH (PyNFS::PUTFH1r)", func() {
-        //    r := c.Pass(Putfh(rootFH), Getfh())
-        //    Assert(bytes.Equal(r[1].Opgetfh.Resok4.Object, rootFH),
-			//	"fh should be same")
-        //})
+		It("Bad FH (PyNFS::PUTFH2)", func() {
+			c.Fail(NFS4ERR_BADHANDLE, Putfh(FhFromString("bad")), Getfh())
+		})
 
-        It("Bad FH (PyNFS::PUTFH2)", func() {
-            c.Fail(NFS4ERR_BADHANDLE, Putfh(FhFromString("bad")), Getfh())
-        })
+		It("Lookup empty", func() {
+			c.Fail(NFS4ERR_INVAL, Putfh(rootFH), Lookup(""))
+		})
 
-        It("Lookup empty", func() {
-            c.Fail(NFS4ERR_INVAL, Putfh(rootFH), Lookup(""))
-        })
-
-        It("No fh (PyNFS::GF9)", func() {
-            c.Fail(NFS4ERR_NOFILEHANDLE, Getfh())
-        })
+		It("No fh (PyNFS::GF9)", func() {
+			c.Fail(NFS4ERR_NOFILEHANDLE, Getfh())
+		})
 
 		It("Renew Op (PyNFS::RENEW1,2)", func(){
 			c.Pass(Renew(c.ClientId))
@@ -74,31 +68,31 @@ var _ = Describe("Functional", func() {
 			c.Pass(Putfh(rootFH), Remove(dir))
 		})
 
-        It("PyNFS::LOOK9", func() {
-            dir := (RandString(16))
-            dirFH := c.CreateDir(rootFH, dir, 0777)
-            dirFH2 := c.CreateDir(dirFH, dir, 0777)
-            c.SetAttr(dirFH2, 0000)
-			r, _ := c.Compound(Putfh(rootFH), Lookup(dir), Lookup(dir))
-            if c.AuthSys.Uid == 0 {
-				AssertNfsOK(r.Status)
-            } else {
-				AssertStatus(r.Status, NFS4ERR_ACCESS)
-            }
-        })
+		It("PyNFS::LOOK9", func() {
+			dir := (RandString(16))
+			dirFH := c.CreateDir(rootFH, dir, 0777)
+			dirFH2 := c.CreateDir(dirFH, dir, 0777)
+			c.SetAttr(dirFH2, 0000)
+				r, _ := c.Compound(Putfh(rootFH), Lookup(dir), Lookup(dir))
+			if c.AuthSys.Uid == 0 {
+					AssertNfsOK(r.Status)
+			} else {
+					AssertStatus(r.Status, NFS4ERR_ACCESS)
+			}
+		})
 
-        It("PyNFS::LOCK1", func() {
-            fileName := RandString(8)
-            newFH, stateId := c.OpenSimple(rootFH, fileName)
-            c.LockSimple(
-				newFH,
-                WRITE_LT, 0, 10, stateId)
-            c.Fail(
-				NFS4ERR_DENIED,
-				Putfh(newFH),
-				Lockt(WRITE_LT, 0, 10, LockOwner4{
-					Clientid: c.ClientId, Owner: "Other Owner"}))
-        })
+		It("PyNFS::LOCK1", func() {
+			fileName := RandString(8)
+			newFH, stateId := c.OpenSimple(rootFH, fileName)
+			c.LockSimple(
+					newFH,
+			WRITE_LT, 0, 10, stateId)
+			c.Fail(
+					NFS4ERR_DENIED,
+					Putfh(newFH),
+					Lockt(WRITE_LT, 0, 10, LockOwner4{
+						Clientid: c.ClientId, Owner: "Other Owner"}))
+			})
 
 	})
 

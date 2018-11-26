@@ -34,6 +34,7 @@ type Server struct {
 	RebootCmd     string    `json:"reboot-cmd"`
 	// these would be obtained by requests to server itself
 	//LeaseTime  int ?? (in client)
+	RefPath      string
 }
 
 type TestConfig struct {
@@ -95,6 +96,10 @@ func (c *TestConfig) GetBlockExport() string {
 	} else {
 		return ""
 	}
+}
+
+func (c *TestConfig) GetRefPath() string {
+	return c.Servers[c.DefaultServer].RefPath
 }
 
 //////// external background commands ////////////////

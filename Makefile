@@ -1,14 +1,12 @@
 .PHONY: v40 v41 v42
 
 # Defaults:
-skip := Stress|Slow
+skip := Stress|Slow|Problematic
 focus :=
 config := $(PWD)/config.json
 
 opts := -config $(config)
 gopts := -v --trace -keepGoing -skip "$(skip)" -focus "$(focus)"
-
-# -v
 
 all:
 	ginkgo $(gopts) ./tests/... -- $(opts)

@@ -7,12 +7,6 @@ import (
 	"time"
 )
 
-var (
-	c *NFSv40Client
-	export string
-	rootFH NfsFh4
-)
-
 var _ = Describe("Functional", func() {
 
 	Context("Basic", func() {
@@ -63,7 +57,7 @@ var _ = Describe("Functional", func() {
 			}
 		})
 
-		It("PyNFS::LOCK1", func() {
+		It("PyNFS LOCK1", func() {
 			r := c.Pass(Putfh(rootFH), c.OpenArgs(), Getfh())
 			fh := GrabFh(&r)
 			stateId := r[1].Opopen.Resok4.Stateid
@@ -72,7 +66,9 @@ var _ = Describe("Functional", func() {
 			r = c.Pass(Putfh(fh), OpenConfirm(stateId, c.Seq))
 			stateId = r[1].OpopenConfirm.Resok4.OpenStateid
 			c.Seq++
+			By("Locking file")
 			c.Pass(Putfh(fh), c.LockArgs(stateId))
+			By("... and checking it")
 			c.Fail(NFS4ERR_DENIED,
 					Putfh(fh), c.LocktArgs("Other Owner"))
 		})
@@ -82,56 +78,90 @@ var _ = Describe("Functional", func() {
 
 	Context("Slow", func() {
 
-		It("Renew expired (PyNFS::RENEW3)", func() {
-			cliExpiring := NewNFSv40Client(
-				Config.GetHost(), Config.GetPort(),
-				RandString(8)+".fake.net", 0, 0, RandString(8))
-			r := c.Pass(Setclientid(cliExpiring.GetClientID(),
-				cliExpiring.GetCallBack(), 1))
-			cliExpiring.ClientId = r[0].Opsetclientid.Resok4.Clientid
-			cliExpiring.Verifier = r[0].Opsetclientid.Resok4.SetclientidConfirm
-			cliExpiring.Pass(SetclientidConfirm(cliExpiring.ClientId,
-				cliExpiring.Verifier))
-			cliExpiring.Pass(Renew(cliExpiring.ClientId))
-			By("pinging server in default client and abandon in cliExpiring")
-			// supposing LeaseTime is the same
-			interval := time.Second * time.Duration(90 / 6)
-			for i:=0;i<7;i++ {
-				time.Sleep(interval)
-				c.Pass(Renew(c.ClientId))
-			}
-			c.Pass(Putrootfh(), Getfh())
-			cliExpiring.Fail(
-				NFS4ERR_EXPIRED,
-				Renew(cliExpiring.ClientId))
-			cliExpiring.Close()
-		})
+		It("Renew and state_id expired (PyNFS::RENEW3)", func() {
 
-		It("Expired xxx", func() {
+			By("Creating new client")
 			cliExpiring := NewNFSv40Client(
 				Config.GetHost(), Config.GetPort(),
 				RandString(8)+".fake.net", 0, 0, RandString(8))
-			r := c.Pass(Setclientid(cliExpiring.GetClientID(),
-				cliExpiring.GetCallBack(), 1))
-			cliExpiring.ClientId = r[0].Opsetclientid.Resok4.Clientid
-			cliExpiring.Verifier = r[0].Opsetclientid.Resok4.SetclientidConfirm
-			cliExpiring.Pass(SetclientidConfirm(cliExpiring.ClientId,
-				cliExpiring.Verifier))
+			cliExpiring.SetAndConfirmClientId()
+
+			By("Check that renew works")
 			cliExpiring.Pass(Renew(cliExpiring.ClientId))
-			r = cliExpiring.Pass(Putfh(rootFH), cliExpiring.OpenArgs(), Getfh())
+
+			By("Create file")
+			r := cliExpiring.Pass(Putfh(rootFH), cliExpiring.OpenArgs(), Getfh())
 			fh := GrabFh(&r)
 			stateId := r[1].Opopen.Resok4.Stateid
 			cliExpiring.Seq++
 			r = cliExpiring.Pass(Putfh(fh), OpenConfirm(stateId, cliExpiring.Seq))
 			stateId = r[1].OpopenConfirm.Resok4.OpenStateid
 			cliExpiring.Seq++
-			interval := time.Second * time.Duration(90 / 6)
+
+			By("Imitate network partition in new client")
+			interval := time.Second * time.Duration(c.LeaseTime / 6)
 			for i:=0;i<7;i++ {
 				time.Sleep(interval)
 				c.Pass(Renew(c.ClientId))
 			}
+			c.Pass(Putrootfh(), Getfh())
+
+			By("Expired client could not renew")
+			cliExpiring.Fail(
+				NFS4ERR_EXPIRED,
+				Renew(cliExpiring.ClientId))
+			cliExpiring.Close()
+
+			By("Old state id should not work")
 			c.Fail(NFS4ERR_EXPIRED,
 				Putfh(fh), Close(c.Seq, stateId))
+		})
+
+		It("Reboot", func() {
+			// TODO: skip if no reboot command
+			r := c.Pass(Putfh(rootFH), c.OpenArgs(), Getfh())
+			fh := GrabFh(&r)
+			stateId := r[1].Opopen.Resok4.Stateid
+			c.Seq++
+			r = c.Pass(Putfh(fh), OpenConfirm(stateId, c.Seq))
+			stateId = r[1].OpopenConfirm.Resok4.OpenStateid
+			c.Seq++
+
+			By("Locking file")
+			c.Pass(Putfh(fh), c.LockArgs(stateId))
+
+			By("Lock Test")
+			c.Pass(Putfh(fh), c.LocktArgs(c.Id))
+
+			By("Reboot Server")
+			Config.RebootServer()
+
+			// TODO: ping until become available
+			time.Sleep(time.Second * time.Duration(10))
+
+			By("Reconnect")
+			c.Reconnect()
+
+			By("Try again")
+			c.Pass(Putfh(fh), Getfh())
+
+			c.Fail(NFS4ERR_GRACE,
+				Putfh(fh), c.LocktArgs("Other Owner"))
+
+			c.Fail(NFS4ERR_GRACE,
+				Putfh(fh), c.LocktArgs(c.Id))
+
+			By("Waiting grace period")
+			time.Sleep(time.Second * time.Duration(c.LeaseTime))
+			c.Fail(NFS4ERR_STALE_CLIENTID,
+				Putfh(fh), c.LocktArgs("Other Owner"))
+
+			By("Re get client id")
+			c.SetAndConfirmClientId()
+
+			By("Network partition recovery finished by now")
+			c.Pass(Putfh(fh), c.LocktArgs(c.Id))
+
 		})
 
 	})

@@ -8,6 +8,12 @@ import (
 	. "github.com/avekceeb/nfsverificator/v40"
 )
 
+var (
+	c *NFSv40Client
+	export string
+	rootFH NfsFh4
+)
+
 func init() {
 	flag.Parse()
 	Config = ReadConfig(ConfigFile)
@@ -17,13 +23,9 @@ var _ = Describe("Before-After", func(){
 
 	BeforeSuite(func() {
 		c = NewNFSv40Client(Config.GetHost(), Config.GetPort(), RandString(8)+".fake.net", 0, 0, RandString(8))
-		// Set Client ID
-		r := c.Pass(Setclientid(c.GetClientID(), c.GetCallBack(), 1))
-		c.ClientId = r[0].Opsetclientid.Resok4.Clientid
-		c.Verifier = r[0].Opsetclientid.Resok4.SetclientidConfirm
-		c.Pass(SetclientidConfirm(c.ClientId, c.Verifier))
+		c.SetAndConfirmClientId()
+		c.GetSomeAttr()
 		export = Config.GetRWExport()
-		// Get exported dir
 		rootFH = c.GetExportFH(export)
 	})
 

@@ -209,7 +209,6 @@ func (cli*NFSv41Client) Null() (error) {
 	return nil
 }
 
-
 func NewNFSv41Client(srvHost string, srvPort int, authHost string, uid uint32, gid uint32, cid string) (*NFSv41Client) {
 	client := NFSv41Client{}
 	u := rpc.NewAuthUnix(authHost, uid, gid)

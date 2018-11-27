@@ -28,6 +28,10 @@ type NFSv40Client struct {
 	Id             string
 	sentNum        uint32
 	recvNum        uint32
+	LeaseTime      uint32
+	server         string
+	port           int
+
 }
 
 type ArgArrayT struct {
@@ -66,9 +70,16 @@ func AssertNoErr(err error) {
 	}
 }
 
+func (c *NFSv40Client) Reconnect() {
+	var err error
+	c.RpcClient, err = rpc.DialService(c.server, c.port)
+	if err != nil {
+		panic(err.Error())
+	}
+}
 
 func NewNFSv40Client(srvHost string, srvPort int, authHost string, uid uint32, gid uint32, cid string) (*NFSv40Client) {
-	client := NFSv40Client{}
+	client := NFSv40Client{server:srvHost}
 	u := rpc.NewAuthUnix(authHost, uid, gid)
 	client.Auth = u.Auth()
 	client.AuthSys = AuthsysParms{
@@ -77,6 +88,7 @@ func NewNFSv40Client(srvHost string, srvPort int, authHost string, uid uint32, g
 	if 0 == srvPort {
 		srvPort = 2049
 	}
+	client.port = srvPort
 	client.RpcClient, err = rpc.DialService(srvHost, srvPort)
 	if err != nil {
 		panic(err.Error())
@@ -99,6 +111,13 @@ func (cli *NFSv40Client) MockReboot() {
 
 func (cli *NFSv40Client) Close() {
 	cli.RpcClient.Close()
+}
+
+func (c *NFSv40Client) SetAndConfirmClientId() {
+	r := c.Pass(Setclientid(c.GetClientID(), c.GetCallBack(), 1))
+	c.ClientId = r[0].Opsetclientid.Resok4.Clientid
+	c.Verifier = r[0].Opsetclientid.Resok4.SetclientidConfirm
+	c.Pass(SetclientidConfirm(c.ClientId, c.Verifier))
 }
 
 func (cli *NFSv40Client) GetClientID() (NfsClientID4) {
@@ -207,20 +226,20 @@ func (t *NFSv40Client) Fail(stat int32, args ...NfsArgop4) ([]NfsResop4) {
 
 
 func (t *NFSv40Client) GetRootFH() (NfsFh4) {
-    ret := t.Pass(Putrootfh(), Getfh())
-    return ret[1].Opgetfh.Resok4.Object
+	ret := t.Pass(Putrootfh(), Getfh())
+	return ret[1].Opgetfh.Resok4.Object
 }
 
 func (t *NFSv40Client) GetExportFH(export string) (fh NfsFh4) {
-    fh = t.GetRootFH()
-    for _, k := range strings.Split(export, "/") {
-        if "" == k {
-            continue
-        }
-        ret := t.Pass(Putfh(fh), Lookup(k), Getfh())
-        fh = ret[2].Opgetfh.Resok4.Object
-    }
-    return fh
+	fh = t.GetRootFH()
+	for _, k := range strings.Split(export, "/") {
+		if "" == k {
+			continue
+		}
+		ret := t.Pass(Putfh(fh), Lookup(k), Getfh())
+		fh = ret[2].Opgetfh.Resok4.Object
+	}
+	return fh
 }
 
 func (t *NFSv40Client) GetFHType(fh NfsFh4) ([]byte) {
@@ -235,23 +254,32 @@ func (t *NFSv40Client) CreateArgs() (NfsArgop4) {
 					AttrVals: GetPermAttrList(0777)})
 }
 
+func (cli *NFSv40Client) GetSomeAttr() {
+	l := cli.Pass(
+		Putrootfh(),
+		Getfh(),
+		Getattr(MakeGetAttrFlags(FATTR4_LEASE_TIME)))
+	cli.LeaseTime = BytesToUint32(LastRes(&l).Opgetattr.Resok4.ObjAttributes.AttrVals)
+}
+
+
 func (t *NFSv40Client) OpenArgs() (NfsArgop4) {
-    return Open(t.Seq,
-			OPEN4_SHARE_ACCESS_WRITE,
-			OPEN4_SHARE_DENY_NONE,
-            OpenOwner4{
-				Clientid: t.ClientId,
-				Owner: t.Id},
-            Openflag4{
-				Opentype:OPEN4_CREATE,
-                How: Createhow4{
-					Mode: UNCHECKED4,
-                    CreateattrsUnchecked: Fattr4{
-						Attrmask: GetBitmap(FATTR4_MODE),
-						AttrVals: GetPermAttrList(0644)},
-                },
+	return Open(t.Seq,
+		OPEN4_SHARE_ACCESS_WRITE,
+		OPEN4_SHARE_DENY_NONE,
+		OpenOwner4{
+			Clientid: t.ClientId,
+			Owner: t.Id},
+		Openflag4{
+			Opentype:OPEN4_CREATE,
+			How: Createhow4{
+				Mode: UNCHECKED4,
+				CreateattrsUnchecked: Fattr4{
+					Attrmask: GetBitmap(FATTR4_MODE),
+					AttrVals: GetPermAttrList(0644)},
 			},
-            OpenClaim4{Claim:CLAIM_NULL, File: RandString(8)})
+		},
+		OpenClaim4{Claim:CLAIM_NULL, File: RandString(8)})
 }
 
 func (t *NFSv40Client) LockArgs(stateId Stateid4) NfsArgop4 {

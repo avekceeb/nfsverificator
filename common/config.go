@@ -136,7 +136,22 @@ func (c *TestConfig) StopExternalCommands() {
 			bkgCmd.Process.Signal(os.Interrupt)
 		}
 	}
+}
 
+// TODO: should be a server method
+func (c *TestConfig) RebootServer() {
+	cmdLine := c.Servers[c.DefaultServer].RebootCmd
+	if "" == cmdLine {
+		return
+	}
+	cmdSlice := strings.Split(cmdLine, " ")
+	cmdLine = cmdSlice[0]
+	cmdSlice = cmdSlice[1:len(cmdSlice)]
+	cmd := exec.Command(cmdLine, cmdSlice...)
+	err := cmd.Run()
+	if nil != err {
+		fmt.Printf("Error running %s : %v", cmdLine, err)
+	}
 }
 
 ///////////////////////////////////////////////////////

@@ -10,6 +10,7 @@ import (
 	"math/rand"
 	"errors"
 	"fmt"
+	"github.com/davecgh/go-spew/spew"
 )
 
 
@@ -25,6 +26,8 @@ type NFSv40Client struct {
 	Seq            uint32 // TODO ??
 	Verifier       Verifier4
 	Id             string
+	sentNum        uint32
+	recvNum        uint32
 }
 
 type ArgArrayT struct {
@@ -113,6 +116,13 @@ func (cli *NFSv40Client) GetCallBack() (CbClient4) {
 }
 
 func (cli *NFSv40Client) Compound(args ...NfsArgop4) (reply COMPOUND4res, err error) {
+		if (Config.Trace) {
+		fmt.Println()
+		fmt.Println("#", cli.sentNum, Tm(),
+			">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+		fmt.Println()
+		spew.Dump(args)
+	}
 	res, err := cli.RpcClient.Call(CompoundMessage{
 		Head: rpc.Header{
 			Rpcvers: 2,
@@ -136,6 +146,19 @@ func (cli *NFSv40Client) Compound(args ...NfsArgop4) (reply COMPOUND4res, err er
 	}
 	// Parse reply at last
 	err = xdr.Read(res, &reply)
+	cli.recvNum++
+	if (Config.Trace) {
+		fmt.Println()
+		fmt.Println("#", cli.recvNum, Tm(),
+			"<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+		fmt.Println()
+		spew.Dump(reply)
+	}
+	cli.sentNum++
+	if nil != err {
+		fmt.Printf("%s", err.Error())
+		return COMPOUND4res{Status:Nfs4ClientError}, err
+	}
 	if nil != err {
 		fmt.Printf("%s", err.Error())
 		return COMPOUND4res{Status:Nfs4ClientError}, err
@@ -205,28 +228,15 @@ func (t *NFSv40Client) GetFHType(fh NfsFh4) ([]byte) {
     return ret[1].Opgetattr.Resok4.ObjAttributes.AttrVals
 }
 
-func (t *NFSv40Client) CreateDir(fh NfsFh4, name string, perm uint) (NfsFh4) {
-	r := t.Pass(
-		Putfh(fh),
-		Create(Createtype4{Type:NF4DIR},
-			name,
-			Fattr4{Attrmask:GetBitmap(FATTR4_MODE),
-                   AttrVals: GetPermAttrList(0777)}),
-		Getfh())
-    return r[2].Opgetfh.Resok4.Object
+func (t *NFSv40Client) CreateArgs() (NfsArgop4) {
+	return Create(Createtype4{Type:NF4DIR},
+				RandString(12),
+				Fattr4{Attrmask:GetBitmap(FATTR4_MODE),
+					AttrVals: GetPermAttrList(0777)})
 }
 
-func (t *NFSv40Client) SetAttr(fh NfsFh4, perm uint) {
-	t.Pass(Putfh(fh),
-		Setattr(Stateid4{}, // TODO: ????
-			Fattr4{Attrmask:GetBitmap(FATTR4_MODE),
-				AttrVals:GetPermAttrList(perm)}))
-}
-
-func (t *NFSv40Client) OpenSimple(fh NfsFh4, name string) (newFH NfsFh4, stateId Stateid4) {
-    r := t.Pass(
-		Putfh(fh),
-        Open(t.Seq,
+func (t *NFSv40Client) OpenArgs() (NfsArgop4) {
+    return Open(t.Seq,
 			OPEN4_SHARE_ACCESS_WRITE,
 			OPEN4_SHARE_DENY_NONE,
             OpenOwner4{
@@ -241,41 +251,29 @@ func (t *NFSv40Client) OpenSimple(fh NfsFh4, name string) (newFH NfsFh4, stateId
 						AttrVals: GetPermAttrList(0644)},
                 },
 			},
-            OpenClaim4{Claim:CLAIM_NULL, File: name}),
-		Getfh())
-	newFH = r[2].Opgetfh.Resok4.Object
-	stateId = r[1].Opopen.Resok4.Stateid
-	t.Seq += 1
-	r = t.Pass(Putfh(newFH), OpenConfirm(stateId, t.Seq))
-	stateId = r[1].OpopenConfirm.Resok4.OpenStateid
-	t.Seq += 1
-	return newFH, stateId
+            OpenClaim4{Claim:CLAIM_NULL, File: RandString(8)})
 }
 
-func (t *NFSv40Client) LockSimple(fh NfsFh4, ltype int32, off uint64, length uint64, stateId Stateid4) ([]NfsResop4) {
-		return t.Pass(
-			Putfh(fh),
-			Lock(
-				ltype,
-				false,
-				off,
-				length,
+func (t *NFSv40Client) LockArgs(stateId Stateid4) NfsArgop4 {
+		return Lock(
+				WRITE_LT,
+				false, /*reclaim*/
+				0, /*offset*/
+				0xffffffffffffffff, /*length*/
 				Locker4{
-					NewLockOwner:true,
+					NewLockOwner:1,
 					OpenOwner: OpenToLockOwner4{
 						OpenSeqid: t.Seq,
 						OpenStateid: stateId,
 						LockSeqid: 0,
 						LockOwner:LockOwner4{
 							Clientid: t.ClientId,
-							Owner: t.Id}}}))
+							Owner: t.Id}}})
 }
 
-//
-//func (t *NFSv40Client) BuildLockt(ltype int32, off uint64, length uint64, owner string) (LOCKT4args) {
-//    return LOCKT4args{
-//		Locktype:ltype,
-//		Offset:off,
-//		Length:length,
-//		Owner:LockOwner4{Clientid: t.ClientId, Owner: owner}}
-//}
+func (t *NFSv40Client) LocktArgs(owner string) (NfsArgop4) {
+	return Lockt(
+		WRITE_LT, 0, 0xffffffffffffffff, LockOwner4{
+			Clientid: t.ClientId, Owner: owner})
+}
+

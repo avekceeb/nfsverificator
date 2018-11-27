@@ -493,7 +493,8 @@ var _ = Describe("Functional", func() {
 			cliStale.Close()
 		})
 
-		It("Close Expired", func(){
+		It("Close Expired", func() {
+			// TODO: got NFS4ERR_BAD_STATEID
 			cli2 := NewNFSv41DefaultClient()
 			cli2.ExchangeId()
 			cli2.CreateSession()

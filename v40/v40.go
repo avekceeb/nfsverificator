@@ -968,7 +968,7 @@ type LINK4res struct {
 
 
 type Locker4 struct {
-	NewLockOwner bool `xdr:"union"`
+	NewLockOwner int32 `xdr:"union"`
 	OpenOwner  OpenToLockOwner4  `xdr:"unioncase=1"` // True
 	LockOwner  ExistLockOwner4  `xdr:"unioncase=0"` // False
 }

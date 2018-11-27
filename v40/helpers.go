@@ -79,3 +79,11 @@ func ErrorName(code int32) string {
 		return "UNKNOWN"
 	}
 }
+
+func LastRes(res *([]NfsResop4)) (*NfsResop4) {
+	return &((*res)[len(*res)-1])
+}
+
+func GrabFh(res *([]NfsResop4)) (NfsFh4) {
+	return LastRes(res).Opgetfh.Resok4.Object
+}

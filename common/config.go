@@ -166,3 +166,9 @@ func timestamp() string {
 func homedir() string {
 	return os.Getenv("HOME")
 }
+
+//func Df() {
+//	cmd := exec.Command("df", "-h")
+//	out, _ := cmd.CombinedOutput()
+//	fmt.Printf("\n>>>>>>>>>>>>>>\n%s\n>>>>>>>>>>>>>>\n", out)
+//}

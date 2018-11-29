@@ -33,4 +33,6 @@ Based on github.com/vmware/go-nfs-client using github.com/rasky/go-xdr/xdr2
 - coverage (or at least nfsstat)
 - config entries for refer option
 - trace: print crc32 for fh
+- trace: print Ops in compound as in Wireshark:
+    PUTFH | OPEN | etc
 - wipe out inUnion from spew::dump

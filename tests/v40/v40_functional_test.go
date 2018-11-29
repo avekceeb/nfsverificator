@@ -4,40 +4,13 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/avekceeb/nfsverificator/v40"
 	. "github.com/avekceeb/nfsverificator/common"
-	"time"
 )
 
 var _ = Describe("Functional", func() {
 
 	Context("Basic", func() {
 
-		It("Bad FH (PyNFS::PUTFH2)", func() {
-			c.Fail(NFS4ERR_BADHANDLE, Putfh(FhFromString("bad")), Getfh())
-		})
-
-		It("Lookup empty", func() {
-			c.Fail(NFS4ERR_INVAL, Putfh(rootFH), Lookup(""))
-		})
-
-		It("No fh (PyNFS::GF9)", func() {
-			c.Fail(NFS4ERR_NOFILEHANDLE, Getfh())
-		})
-
-		It("Renew Op (PyNFS::RENEW1,2)", func(){
-			c.Pass(Renew(c.ClientId))
-			c.Fail(NFS4ERR_STALE_CLIENTID, Renew(0))
-		})
-
-		It("Look dots", func() {
-			createArgs := c.CreateArgs()
-			r := c.Pass(Putfh(rootFH), createArgs, Getfh())
-			fh := GrabFh(&r)
-			c.Fail(NFS4ERR_BADNAME, Putfh(fh), Lookup("."))
-			c.Fail(NFS4ERR_BADNAME, Putfh(fh), Lookup(".."))
-			c.Pass(Putfh(rootFH), Remove(createArgs.Opcreate.Objname))
-		})
-
-		It("PyNFS::LOOK9", func() {
+		It("PyNFS LOOK9", func() {
 			createArgs := c.CreateArgs()
 			dirName := createArgs.Opcreate.Objname
 			r := c.Pass(Putfh(rootFH), createArgs, Getfh())
@@ -48,7 +21,8 @@ var _ = Describe("Functional", func() {
 					Setattr(Stateid4{},
 						Fattr4{Attrmask:GetBitmap(FATTR4_MODE),
 							AttrVals:GetPermAttrList(0000)}))
-			res, _ := c.Compound(Putfh(rootFH), Lookup(dirName), Lookup(dirName))
+			res, _ := c.Compound(Putfh(rootFH),
+				Lookup(dirName), Lookup(dirName))
 			if c.AuthSys.Uid == 0 {
 					// root can do everything
 					AssertNfsOK(res.Status)
@@ -58,110 +32,91 @@ var _ = Describe("Functional", func() {
 		})
 
 		It("PyNFS LOCK1", func() {
-			r := c.Pass(Putfh(rootFH), c.OpenArgs(), Getfh())
-			fh := GrabFh(&r)
-			stateId := r[1].Opopen.Resok4.Stateid
-			// TODO: automatically???
-			c.Seq++
-			r = c.Pass(Putfh(fh), OpenConfirm(stateId, c.Seq))
-			stateId = r[1].OpopenConfirm.Resok4.OpenStateid
-			c.Seq++
-			By("Locking file")
-			c.Pass(Putfh(fh), c.LockArgs(stateId))
-			By("... and checking it")
-			c.Fail(NFS4ERR_DENIED,
-					Putfh(fh), c.LocktArgs("Other Owner"))
-		})
-
-	})
-
-
-	Context("Slow", func() {
-
-		It("Renew and state_id expired (PyNFS::RENEW3)", func() {
-
-			By("Creating new client")
-			cliExpiring := NewNFSv40Client(
+			By("New client. TODO: toxic test, spoils seqid")
+			var c *NFSv40Client
+			c = NewNFSv40Client(
 				Config.GetHost(), Config.GetPort(),
-				RandString(8)+".fake.net", 0, 0, RandString(8))
-			cliExpiring.SetAndConfirmClientId()
-
-			By("Check that renew works")
-			cliExpiring.Pass(Renew(cliExpiring.ClientId))
-
-			By("Create file")
-			r := cliExpiring.Pass(Putfh(rootFH), cliExpiring.OpenArgs(), Getfh())
-			fh := GrabFh(&r)
-			stateId := r[1].Opopen.Resok4.Stateid
-			cliExpiring.Seq++
-			r = cliExpiring.Pass(Putfh(fh), OpenConfirm(stateId, cliExpiring.Seq))
-			stateId = r[1].OpopenConfirm.Resok4.OpenStateid
-			cliExpiring.Seq++
-
-			By("Imitate network partition in new client")
-			interval := time.Second * time.Duration(c.LeaseTime / 6)
-			for i:=0;i<7;i++ {
-				time.Sleep(interval)
-				c.Pass(Renew(c.ClientId))
-			}
-			c.Pass(Putrootfh(), Getfh())
-
-			By("Expired client could not renew")
-			cliExpiring.Fail(
-				NFS4ERR_EXPIRED,
-				Renew(cliExpiring.ClientId))
-			cliExpiring.Close()
-
-			By("Old state id should not work")
-			c.Fail(NFS4ERR_EXPIRED,
-				Putfh(fh), Close(c.Seq, stateId))
-		})
-
-		It("Reboot", func() {
-			// TODO: skip if no reboot command
-			r := c.Pass(Putfh(rootFH), c.OpenArgs(), Getfh())
-			fh := GrabFh(&r)
-			stateId := r[1].Opopen.Resok4.Stateid
-			c.Seq++
-			r = c.Pass(Putfh(fh), OpenConfirm(stateId, c.Seq))
-			stateId = r[1].OpopenConfirm.Resok4.OpenStateid
-			c.Seq++
-
-			By("Locking file")
-			c.Pass(Putfh(fh), c.LockArgs(stateId))
-
-			By("Lock Test")
-			c.Pass(Putfh(fh), c.LocktArgs(c.Id))
-
-			By("Reboot Server")
-			Config.RebootServer()
-
-			// TODO: ping until become available
-			time.Sleep(time.Second * time.Duration(10))
-
-			By("Reconnect")
-			c.Reconnect()
-
-			By("Try again")
-			c.Pass(Putfh(fh), Getfh())
-
-			c.Fail(NFS4ERR_GRACE,
-				Putfh(fh), c.LocktArgs("Other Owner"))
-
-			c.Fail(NFS4ERR_GRACE,
-				Putfh(fh), c.LocktArgs(c.Id))
-
-			By("Waiting grace period")
-			time.Sleep(time.Second * time.Duration(c.LeaseTime))
-			c.Fail(NFS4ERR_STALE_CLIENTID,
-				Putfh(fh), c.LocktArgs("Other Owner"))
-
-			By("Re get client id")
+				RandString(8) + ".fake.net", 0, 0, RandString(8))
 			c.SetAndConfirmClientId()
 
-			By("Network partition recovery finished by now")
-			c.Pass(Putfh(fh), c.LocktArgs(c.Id))
+			By("Open/create file for write")
+			openArgs := c.OpenArgs()
+			r := c.Pass(Putfh(rootFH), openArgs, Getfh())
+			fh := GrabFh(&r)
+			stateId := c.OpenConfirmMacro(&r)
 
+			By("Lock file for write")
+			r = c.Pass(Putfh(fh), c.LockArgs(stateId))
+			stateId = r[1].Oplock.Resok4.LockStateid
+
+			By("Check file is locked")
+			c.Fail(NFS4ERR_DENIED,
+					Putfh(fh), c.LocktArgs("Other Owner"))
+
+			By("One more lock for write")
+			lockArgs2 := Lock(
+				WRITE_LT,
+				false, /*reclaim*/
+				0, /*offset*/
+				NFS4_UINT64_MAX, /*length*/
+				Locker4{
+					NewLockOwner:0,
+					LockOwner: ExistLockOwner4{
+						LockSeqid: r[1].Oplock.Resok4.LockStateid.Seqid,
+						LockStateid: stateId}})
+			r = c.Pass(Putfh(fh), lockArgs2)
+
+			By("Check file is still locked")
+			c.Fail(NFS4ERR_DENIED,
+					Putfh(fh), c.LocktArgs("Other Owner"))
+
+			By("Clean up")
+			c.Pass(Putfh(rootFH), Remove(openArgs.Opopen.Claim.File))
+		})
+
+		It("Range locks", func() {
+
+			By("Open/create file for write")
+			openArgs := c.OpenArgs()
+			r := c.Pass(Putfh(rootFH), openArgs, Getfh())
+			fh := GrabFh(&r)
+			openStateId := c.OpenConfirmMacro(&r)
+			openSeqId := c.Seq
+
+			By("Write to file")
+			r = c.Pass(Putfh(fh),
+				Write(openStateId, 0, UNSTABLE4, make([]byte, 64)))
+
+			By("Lock range 0-32 for write")
+			lockArgs1 := c.LockArgs(openStateId)
+			lockArgs1.Oplock.Offset = 0
+			lockArgs1.Oplock.Length = 32
+			lockArgs1.Oplock.Locker.OpenOwner.OpenSeqid = openSeqId
+			r = c.Pass(Putfh(fh), lockArgs1)
+			lock1StateId := r[1].Oplock.Resok4.LockStateid
+
+			By("Lock range 32-64 for write")
+			lockArgs2 := c.LockArgs(openStateId)
+			lockArgs2.Oplock.Offset = 32
+			lockArgs2.Oplock.Length = 32
+			lockArgs2.Oplock.Locker.OpenOwner.OpenSeqid = openSeqId
+			r = c.Pass(Putfh(fh), lockArgs2)
+			lock2StateId := r[1].Oplock.Resok4.LockStateid
+
+			By("Check file is locked")
+			c.Fail(NFS4ERR_DENIED,
+					Putfh(fh), c.LocktArgs("Other Owner"))
+
+			By("Write to 0-32")
+			r = c.Pass(Putfh(fh),
+				Write(lock1StateId, 0, UNSTABLE4, []byte(RandString(32))))
+			By("Write to 32-64")
+			r = c.Pass(Putfh(fh),
+				Write(lock2StateId, 0, UNSTABLE4, []byte(RandString(32))))
+
+			By("Clean up")
+			c.Pass(Putfh(fh), Close(openSeqId, openStateId))
+			c.Pass(Putfh(rootFH), Remove(openArgs.Opopen.Claim.File))
 		})
 
 	})

@@ -823,7 +823,7 @@ type VERIFY4res struct { // VERIFY4res
 
 type WRITE4args struct { // WRITE4args
 	Stateid Stateid4
-	Offset uint32
+	Offset uint64
 	Stable int32
 	Data []byte
 }
@@ -1392,7 +1392,7 @@ func Verify (objattributes Fattr4) (NfsArgop4) {
 }
 
 
-func Write (stateid Stateid4, offset uint32, stable int32, data []byte) (NfsArgop4) {
+func Write (stateid Stateid4, offset uint64, stable int32, data []byte) (NfsArgop4) {
 	return NfsArgop4{Argop:38, Opwrite:WRITE4args{ Stateid:stateid, Offset:offset, Stable:stable, Data:data } }
 }
 

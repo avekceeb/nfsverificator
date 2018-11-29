@@ -87,3 +87,15 @@ func LastRes(res *([]NfsResop4)) (*NfsResop4) {
 func GrabFh(res *([]NfsResop4)) (NfsFh4) {
 	return LastRes(res).Opgetfh.Resok4.Object
 }
+
+func AreFhEqual(a, b NfsFh4) bool {
+    if len(a) != len(b) {
+        return false
+    }
+    for i, v := range a {
+        if v != b[i] {
+            return false
+        }
+    }
+    return true
+}

@@ -1,7 +1,7 @@
 .PHONY: v40 v41 v42
 
 # Defaults:
-skip := Stress|Slow|Problematic
+skip := Stress|Slow|Problematic|Expiration|Reboot
 focus :=
 config := $(PWD)/config.json
 

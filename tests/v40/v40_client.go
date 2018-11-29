@@ -18,6 +18,14 @@ const (
 	Nfs4ClientError = 10099
 )
 
+var (
+	opsIncSeq []uint32
+)
+
+func init() {
+	opsIncSeq = []uint32{OP_CLOSE, OP_LOCK, OP_LOCKU, OP_OPEN, OP_OPEN_CONFIRM}
+}
+
 type NFSv40Client struct {
 	RpcClient      *rpc.Client
 	Auth           rpc.Auth
@@ -163,6 +171,26 @@ func (cli *NFSv40Client) Compound(args ...NfsArgop4) (reply COMPOUND4res, err er
 	if nil == res {
 		return COMPOUND4res{Status:Nfs4ClientError}, errors.New("Reply is nil")
 	}
+	/*
+	RFC 7530 9.1.7.  Sequencing of Lock Requests
+	The client MUST advance the sequence number for the
+	CLOSE, LOCK, LOCKU, OPEN, OPEN_CONFIRM, and OPEN_DOWNGRADE operations.
+	This is true even in the event that the previous operation that used the
+	sequence number received an error.  The only exception to this rule
+	is if the previous operation received one of the following errors:
+	NFS4ERR_STALE_CLIENTID, NFS4ERR_STALE_STATEID, NFS4ERR_BAD_STATEID,
+	NFS4ERR_BAD_SEQID, NFS4ERR_BADXDR, NFS4ERR_RESOURCE,
+	NFS4ERR_NOFILEHANDLE, or NFS4ERR_MOVED.
+	*/
+	if len(args) > 0 {
+		for _, a := range args {
+			if InSliceUint32(uint32(a.Argop), opsIncSeq) {
+				// TODO: check result
+				cli.Seq++
+			}
+		}
+	}
+
 	// Parse reply at last
 	err = xdr.Read(res, &reply)
 	cli.recvNum++
@@ -282,12 +310,23 @@ func (t *NFSv40Client) OpenArgs() (NfsArgop4) {
 		OpenClaim4{Claim:CLAIM_NULL, File: RandString(8)})
 }
 
+func (t *NFSv40Client) OpenNoCreateArgs() NfsArgop4 {
+	return Open(t.Seq,
+			OPEN4_SHARE_ACCESS_READ,
+			OPEN4_SHARE_DENY_NONE,
+			OpenOwner4{
+				Clientid: t.ClientId,
+				Owner: t.Id},
+			Openflag4{Opentype: OPEN4_NOCREATE},
+			OpenClaim4{Claim:CLAIM_NULL, File: RandString(12)})
+}
+
 func (t *NFSv40Client) LockArgs(stateId Stateid4) NfsArgop4 {
 		return Lock(
 				WRITE_LT,
 				false, /*reclaim*/
 				0, /*offset*/
-				0xffffffffffffffff, /*length*/
+				NFS4_UINT64_MAX, /*length = whole file*/
 				Locker4{
 					NewLockOwner:1,
 					OpenOwner: OpenToLockOwner4{
@@ -301,7 +340,25 @@ func (t *NFSv40Client) LockArgs(stateId Stateid4) NfsArgop4 {
 
 func (t *NFSv40Client) LocktArgs(owner string) (NfsArgop4) {
 	return Lockt(
-		WRITE_LT, 0, 0xffffffffffffffff, LockOwner4{
+		WRITE_LT, 0, NFS4_UINT64_MAX, LockOwner4{
 			Clientid: t.ClientId, Owner: owner})
+}
+
+func (t *NFSv40Client) LockuArgs(sid Stateid4) (NfsArgop4) {
+	return Locku(WRITE_LT, t.Seq, sid, 0, NFS4_UINT64_MAX)
+}
+
+////// macro commands ////////////////////////////////////
+
+// Note: supposing r = PUTFH;OPEN;GETFH
+func (c *NFSv40Client) OpenConfirmMacro(r *([]NfsResop4)) (Stateid4) {
+	fh := GrabFh(r)
+	stateId := (*r)[1].Opopen.Resok4.Stateid
+	if CheckFlag((*r)[1].Opopen.Resok4.Rflags,
+		OPEN4_RESULT_CONFIRM) {
+		rc := c.Pass(Putfh(fh), OpenConfirm(stateId, c.Seq))
+		stateId = rc[1].OpopenConfirm.Resok4.OpenStateid
+	}
+	return stateId
 }
 

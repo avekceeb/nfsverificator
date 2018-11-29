@@ -108,28 +108,6 @@ var _ = Describe("Errors", func() {
 				args...)
 		})
 
-		It("Layout Unavailable", func(){
-			// TODO: check Config.ShareIsNotPNFS
-			r := c.Pass(c.SequenceArgs(), Putfh(rootFH), c.OpenArgs(), Getfh())
-			resok := r[2].Opopen.Resok4
-			stateId := resok.Stateid
-			fh := LastRes(&r).Opgetfh.Resok4.Object
-			for layout := 0; layout < 6; layout++ {
-				c.Fail(
-					NFS4ERR_LAYOUTUNAVAILABLE,
-					c.SequenceArgs(),
-					Putfh(fh),
-					Layoutget(false,
-						int32(layout),
-						2 /*RW*/,
-						0, 4096, 4096, stateId, 4096 /*maxcount*/))
-			}
-			c.Pass(
-				c.SequenceArgs(),
-				Putfh(fh),
-				Close(c.Seq, stateId))
-		})
-
 		It("TODO: NFS4ERR_RETRY_UNCACHED_REP", func(){
 			savedSeq := c.Seq
 			c.Fail(

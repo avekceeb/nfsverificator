@@ -60,6 +60,30 @@ var _ = Describe("Problematic", func() {
 				Remove(name))
 		})
 
+		It("Layout Unavailable", func(){
+			// TODO: check Config.ShareIsNotPNFS
+			// TODO: Solaris failed to decode args
+			r := c.Pass(c.SequenceArgs(), Putfh(rootFH), c.OpenArgs(), Getfh())
+			resok := r[2].Opopen.Resok4
+			stateId := resok.Stateid
+			fh := LastRes(&r).Opgetfh.Resok4.Object
+			for layout := 0; layout < 6; layout++ {
+				c.Fail(
+					NFS4ERR_LAYOUTUNAVAILABLE,
+					c.SequenceArgs(),
+					Putfh(fh),
+					Layoutget(false,
+						int32(layout),
+						2 /*RW*/,
+						0, 4096, 4096, stateId, 4096 /*maxcount*/))
+			}
+			c.Pass(
+				c.SequenceArgs(),
+				Putfh(fh),
+				Close(c.Seq, stateId))
+		})
+
+
 		It("TODO: NFS4ERR_SEQ_FALSE_RETRY", func(){
 			Skip("TODO: toxic test")
 			c.Pass(

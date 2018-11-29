@@ -676,7 +676,7 @@ type PUTROOTFH4res struct { // PUTROOTFH4res
 
 type READ4args struct { // READ4args
 	Stateid Stateid4
-	Offset uint32
+	Offset uint64
 	Count uint32
 }
 
@@ -1327,7 +1327,7 @@ func Putrootfh () (NfsArgop4) {
 }
 
 
-func Read (stateid Stateid4, offset uint32, count uint32) (NfsArgop4) {
+func Read (stateid Stateid4, offset uint64, count uint32) (NfsArgop4) {
 	return NfsArgop4{Argop:25, Opread:READ4args{ Stateid:stateid, Offset:offset, Count:count } }
 }
 

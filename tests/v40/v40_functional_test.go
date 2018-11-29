@@ -10,6 +10,24 @@ var _ = Describe("Functional", func() {
 
 	Context("Basic", func() {
 
+		It("Special stateid", func() {
+			c.Pass(Putfh(globalFileFH),
+				Write(anonStateId,
+					0, UNSTABLE4, []byte(RandString(32))))
+			c.Pass(Putfh(globalFileFH),
+				Write(bypassStateId,
+					0, UNSTABLE4, []byte(RandString(32))))
+			c.Pass(Putfh(globalFileFH),
+				Read(bypassStateId, 0, 32))
+			c.Pass(Putfh(globalFileFH),
+				Read(anonStateId, 0, 32))
+			c.Pass(Putfh(globalFileFH),
+				Setattr(anonStateId, fattrSize))
+			// TODO: wrong time val???
+			//c.Pass(Putfh(globalFileFH),
+			//	Setattr(anonStateId, fattrMTime))
+		})
+
 		It("PyNFS LOOK9", func() {
 			createArgs := c.CreateArgs()
 			dirName := createArgs.Opcreate.Objname
@@ -18,7 +36,7 @@ var _ = Describe("Functional", func() {
 			r = c.Pass(Putfh(dirFH), createArgs, Getfh())
 			dirFH2 := GrabFh(&r)
 			c.Pass(Putfh(dirFH2),
-					Setattr(Stateid4{},
+					Setattr(anonStateId,
 						Fattr4{Attrmask:GetBitmap(FATTR4_MODE),
 							AttrVals:GetPermAttrList(0000)}))
 			res, _ := c.Compound(Putfh(rootFH),
@@ -74,50 +92,6 @@ var _ = Describe("Functional", func() {
 			c.Pass(Putfh(rootFH), Remove(openArgs.Opopen.Claim.File))
 		})
 
-		It("Range locks", func() {
-
-			By("Open/create file for write")
-			openArgs := c.OpenArgs()
-			r := c.Pass(Putfh(rootFH), openArgs, Getfh())
-			fh := GrabFh(&r)
-			openStateId := c.OpenConfirmMacro(&r)
-			openSeqId := c.Seq
-
-			By("Write to file")
-			r = c.Pass(Putfh(fh),
-				Write(openStateId, 0, UNSTABLE4, make([]byte, 64)))
-
-			By("Lock range 0-32 for write")
-			lockArgs1 := c.LockArgs(openStateId)
-			lockArgs1.Oplock.Offset = 0
-			lockArgs1.Oplock.Length = 32
-			lockArgs1.Oplock.Locker.OpenOwner.OpenSeqid = openSeqId
-			r = c.Pass(Putfh(fh), lockArgs1)
-			lock1StateId := r[1].Oplock.Resok4.LockStateid
-
-			By("Lock range 32-64 for write")
-			lockArgs2 := c.LockArgs(openStateId)
-			lockArgs2.Oplock.Offset = 32
-			lockArgs2.Oplock.Length = 32
-			lockArgs2.Oplock.Locker.OpenOwner.OpenSeqid = openSeqId
-			r = c.Pass(Putfh(fh), lockArgs2)
-			lock2StateId := r[1].Oplock.Resok4.LockStateid
-
-			By("Check file is locked")
-			c.Fail(NFS4ERR_DENIED,
-					Putfh(fh), c.LocktArgs("Other Owner"))
-
-			By("Write to 0-32")
-			r = c.Pass(Putfh(fh),
-				Write(lock1StateId, 0, UNSTABLE4, []byte(RandString(32))))
-			By("Write to 32-64")
-			r = c.Pass(Putfh(fh),
-				Write(lock2StateId, 0, UNSTABLE4, []byte(RandString(32))))
-
-			By("Clean up")
-			c.Pass(Putfh(fh), Close(openSeqId, openStateId))
-			c.Pass(Putfh(rootFH), Remove(openArgs.Opopen.Claim.File))
-		})
 
 	})
 

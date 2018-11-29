@@ -19,11 +19,37 @@ const (
 )
 
 var (
-	opsIncSeq []uint32
+	opsIncSeq     []uint32
+	anonStateId   Stateid4
+	bypassStateId Stateid4
+	timeOnce      Nfstime4
+	fattrSize     Fattr4
+	fattrMTime    Fattr4
 )
+
+//func gobEncode(e interface{}) ([]byte) {
+//	var buf bytes.Buffer
+//	enc := gob.NewEncoder(&buf)
+//	err := enc.Encode(e)
+//	if nil != err {
+//		panic(err.Error())
+//	}
+//	return buf.Bytes()
+//}
 
 func init() {
 	opsIncSeq = []uint32{OP_CLOSE, OP_LOCK, OP_LOCKU, OP_OPEN, OP_OPEN_CONFIRM}
+	bypassStateId.Seqid = NFS4_UINT32_MAX
+	for i:= range bypassStateId.Other {
+		bypassStateId.Other[i] = 0xff
+	}
+	timeOnce.Seconds = 1540057110
+	timeOnce.Nseconds = 858740700
+	fattrSize.Attrmask = GetBitmap(FATTR4_SIZE)
+	fattrSize.AttrVals = []byte{0,0,0,0,0,0,0,128}
+	fattrMTime.Attrmask = GetBitmap(FATTR4_TIME_MODIFY)
+	fattrMTime.AttrVals = []byte{0,0,0,0,0x5b,0xcb,0x68,0x16/*sec*/,
+								0x33,0x2c,0x57,0xdc/*nsec*/}
 }
 
 type NFSv40Client struct {

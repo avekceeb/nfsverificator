@@ -35,4 +35,6 @@ Based on github.com/vmware/go-nfs-client using github.com/rasky/go-xdr/xdr2
 - trace: print crc32 for fh
 - trace: print Ops in compound as in Wireshark:
     PUTFH | OPEN | etc
+- trace: redirect to stderr
 - wipe out inUnion from spew::dump
+- most common compounds: PUTFH;OPEN;GETFH;ACCESS;GETATTR

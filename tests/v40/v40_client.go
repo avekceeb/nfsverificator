@@ -93,6 +93,18 @@ func AssertStatus(actual int32, expected int32) {
 			ErrorName(expected), ErrorName(actual)))
 }
 
+func AssertStatusOneOf(actual int32, expected []int32) {
+	list := []string{}
+	for _, err := range expected {
+		list = append(list, ErrorName(err))
+		if actual == err {
+			return
+		}
+	}
+	ginkgo.Fail(fmt.Sprintf("Expected one of: %s  Got: %s",
+			strings.Join(list, ", "), ErrorName(actual)))
+}
+
 func AssertNfsOK(actual int32) {
 	AssertStatus(actual, NFS4_OK)
 }
@@ -275,6 +287,13 @@ func (t *NFSv40Client) Fail(stat int32, args ...NfsArgop4) ([]NfsResop4) {
 	res, err := t.Compound(args...)
 	AssertNoErr(err)
 	AssertStatus(res.Status, stat)
+	return res.Resarray
+}
+
+func (t *NFSv40Client) FailOneOf(listOfErr []int32, args ...NfsArgop4) ([]NfsResop4) {
+	res, err := t.Compound(args...)
+	AssertNoErr(err)
+	AssertStatusOneOf(res.Status, listOfErr)
 	return res.Resarray
 }
 

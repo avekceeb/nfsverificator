@@ -68,6 +68,8 @@ var _ = Describe("Before-After", func(){
 
 	AfterSuite(func() {
 		// TODO: delete global
+		c.Pass(Putfh(rootFH), Remove(globalDir))
+		c.Pass(Putfh(rootFH), Remove(globalFile))
 		c.Close()
 	})
 

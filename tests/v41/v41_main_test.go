@@ -29,7 +29,7 @@ var (
 
 func init() {
 	flag.Parse()
-	Config = ReadConfig(ConfigFile)
+	Config = ParseOptions()
 	notExisting = "not-exists-" + RandString(16)
 	globalFile  = "global-" + RandString(16)
 	globalDir   = "global-" + RandString(16)
@@ -44,11 +44,12 @@ var _ = Describe("Before-After", func() {
 		c.CreateSession()
 		c.GetSomeAttr()
 		By("Saving some fh for future use in tests")
-		rootFH = c.LookupFromRoot(Config.GetRWExport())
-		blockExport = Config.GetBlockExport()
-		if "" != blockExport {
-			rootBlockFH = c.LookupFromRoot(blockExport)
-		}
+		rootFH = c.LookupFromRoot(Config.Export)
+		// TODO:
+		//blockExport = Config.GetBlockExport()
+		//if "" != blockExport {
+		//	rootBlockFH = c.LookupFromRoot(blockExport)
+		//}
 		By("Creating some global objects for tests")
 		By("Global File")
 		openArgs := c.OpenArgs()

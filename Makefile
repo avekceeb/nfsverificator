@@ -4,8 +4,24 @@
 skip := Stress|Slow|Problematic|Expiration|Reboot
 focus :=
 config := $(PWD)/config.json
+server :=
+export :=
+trace :=
 
-opts := -config $(config)
+opts :=
+ifneq ($(config),)
+    opts = -config $(config)
+endif
+ifneq ($(server),)
+    opts += -server $(server)
+endif
+ifneq ($(export),)
+    opts += -export $(export)
+endif
+ifneq ($(trace),)
+    opts += -trace $(trace)
+endif
+
 gopts := -v --trace -keepGoing -skip "$(skip)" -focus "$(focus)"
 
 all:

@@ -1,5 +1,7 @@
 package v41
 
+import "github.com/avekceeb/nfsverificator/v4"
+
 /*
 TODO: ???
 in CallbackSecParms4:
@@ -7,18 +9,6 @@ in CallbackSecParms4:
 	AUTH_SYS = 2
 	RPCSEC_GSS = 3
  */
-
-// TODO: to GSS or smth
-// Added manually (Dmitry A.)
-type AuthsysParms struct {
-	Stamp       uint32
-	Machinename string
-	Uid         uint32
-	Gid         uint32
-	GidLen      uint32
-	// this was producing extra 4-byte field
-	//Gids        uint32
-}
 
 const (
 	/* Enums: */
@@ -2090,7 +2080,7 @@ type WRITE4res struct {
 type CallbackSecParms4 struct {
 	CbSecflavor int32 `xdr:"union"`
 	//    `xdr:"unioncase=AUTH_NONE"` // None
-	CbspSysCred  AuthsysParms  `xdr:"unioncase=1"` // Sys
+	CbspSysCred  v4.AuthsysParms  `xdr:"unioncase=1"` // Sys
 	CbspGssHandles  GssCbHandles4  `xdr:"unioncase=2"` // Gss
 }
 

@@ -9,7 +9,7 @@ import (
 
 func init() {
 	flag.Parse()
-	Config = ReadConfig(ConfigFile)
+	Config = ParseOptions()
 }
 
 func TestSanity(t *testing.T) {

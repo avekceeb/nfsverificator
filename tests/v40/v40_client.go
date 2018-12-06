@@ -1,16 +1,15 @@
 package v40tests
 
 import (
+	. "github.com/avekceeb/nfsverificator/tests"
 	. "github.com/avekceeb/nfsverificator/v40"
 	. "github.com/avekceeb/nfsverificator/common"
 	"github.com/avekceeb/nfsverificator/rpc"
 	"github.com/avekceeb/nfsverificator/xdr"
-    "github.com/onsi/ginkgo"
 	"strings"
 	"math/rand"
 	"errors"
 	"fmt"
-	"github.com/davecgh/go-spew/spew"
 )
 
 
@@ -25,6 +24,7 @@ var (
 	timeOnce      Nfstime4
 	fattrSize     Fattr4
 	fattrMTime    Fattr4
+	Assert40      Assertion
 )
 
 //func gobEncode(e interface{}) ([]byte) {
@@ -38,6 +38,7 @@ var (
 //}
 
 func init() {
+	Assert40 = Assertion{ErrorName:ErrorNameNfs40}
 	opsIncSeq = []uint32{OP_CLOSE, OP_LOCK, OP_LOCKU, OP_OPEN, OP_OPEN_CONFIRM}
 	bypassStateId.Seqid = NFS4_UINT32_MAX
 	for i:= range bypassStateId.Other {
@@ -53,19 +54,8 @@ func init() {
 }
 
 type NFSv40Client struct {
-	RpcClient      *rpc.Client
-	Auth           rpc.Auth
-	AuthSys        AuthsysParms
-	ClientId       uint64
-	Seq            uint32 // TODO ??
+	*Nfs4Client
 	Verifier       Verifier4
-	Id             string
-	sentNum        uint32
-	recvNum        uint32
-	LeaseTime      uint32
-	server         string
-	port           int
-
 }
 
 type ArgArrayT struct {
@@ -77,117 +67,34 @@ type CompoundMessage struct {
 	Args COMPOUND4args
 }
 
-/**********************************************
-	Minimalist Assertion infrastructure
-***********************************************/
-
-func Assert(condition bool, errMessage string) {
-	if ! condition {
-		ginkgo.Fail(errMessage)
-	}
+func DefaultClient40() (*NFSv40Client) {
+	return NewNFSv40Client(Config.Server, Config.Port,
+		RandString(8) + ".fake.net", 0, 0, RandString(8), Config.Trace)
 }
 
-func AssertStatus(actual int32, expected int32) {
-	Assert(actual == expected,
-		fmt.Sprintf("Expected: %s  Got: %s",
-			ErrorName(expected), ErrorName(actual)))
-}
-
-func AssertStatusOneOf(actual int32, expected []int32) {
-	list := []string{}
-	for _, err := range expected {
-		list = append(list, ErrorName(err))
-		if actual == err {
-			return
-		}
-	}
-	ginkgo.Fail(fmt.Sprintf("Expected one of: %s  Got: %s",
-			strings.Join(list, ", "), ErrorName(actual)))
-}
-
-func AssertNfsOK(actual int32) {
-	AssertStatus(actual, NFS4_OK)
-}
-
-func AssertNoErr(err error) {
-	if err != nil {
-		ginkgo.Fail(fmt.Sprintf(
-			"Unexpected error: %s", err.Error()))
-	}
-}
-
-func (c *NFSv40Client) Reconnect() {
-	var err error
-	c.RpcClient, err = rpc.DialService(c.server, c.port)
-	if err != nil {
-		panic(err.Error())
-	}
-}
-
-func NewNFSv40Client(srvHost string, srvPort int, authHost string, uid uint32, gid uint32, cid string) (*NFSv40Client) {
-	client := NFSv40Client{server:srvHost}
-	u := rpc.NewAuthUnix(authHost, uid, gid)
-	client.Auth = u.Auth()
-	client.AuthSys = AuthsysParms{
-		Stamp:u.Stamp, Uid:uid, Gid:gid, Machinename:authHost, GidLen:0}
-	var err error
-	if 0 == srvPort {
-		srvPort = 2049
-	}
-	client.port = srvPort
-	client.RpcClient, err = rpc.DialService(srvHost, srvPort)
-	if err != nil {
-		panic(err.Error())
-	}
-	client.Id = cid
-	client.MockReboot()
-	return &client
-}
-
-func (cli *NFSv40Client) MockReboot() {
-	cli.Seq = 0
+func NewNFSv40Client(srvHost string, srvPort int,
+	authHost string, uid uint32, gid uint32, cid string, trace bool) (*NFSv40Client) {
 	r := rand.Uint64()
-	cli.Verifier = Verifier4{
-		byte(r&0xff), byte((r&0xff00)>>8),
-		byte((r&0xff0000)>>16), byte((r&0xff000000)>>24),
-		byte((r&0xff000000)>>32), byte((r&0xff0000000000)>>40),
-		byte((r&0xff000000000000)>>48), byte((r&0xff00000000000000)>>56),
-	}
+	client := NFSv40Client{NewNfs4Client(
+		srvHost, srvPort, authHost, uid, gid, cid, trace), Verifier4{
+			byte(r&0xff), byte((r&0xff00)>>8),
+			byte((r&0xff0000)>>16), byte((r&0xff000000)>>24),
+			byte((r&0xff000000)>>32), byte((r&0xff0000000000)>>40),
+			byte((r&0xff000000000000)>>48), byte((r&0xff00000000000000)>>56),
+	}}
+	return &client
 }
 
 func (cli *NFSv40Client) Close() {
 	cli.RpcClient.Close()
 }
 
-func (c *NFSv40Client) SetAndConfirmClientId() {
-	r := c.Pass(Setclientid(c.GetClientID(), c.GetCallBack(), 1))
-	c.ClientId = r[0].Opsetclientid.Resok4.Clientid
-	c.Verifier = r[0].Opsetclientid.Resok4.SetclientidConfirm
-	c.Pass(SetclientidConfirm(c.ClientId, c.Verifier))
-}
-
-func (cli *NFSv40Client) GetClientID() (NfsClientID4) {
-	// TODO: ???
-	return NfsClientID4{
-		Verifier: cli.Verifier,
-		ID: cli.Id}
-}
-
-func (cli *NFSv40Client) GetCallBack() (CbClient4) {
-	// TODO: real client, calculate address
-	return CbClient4{
-		CbProgram:0x40000000,
-		CbLocation: Clientaddr4{RNetid:"tcp", RAddr:"127.0.0.1.139.249"}}
-}
+// all these functions are not so minor version specific
+// and could be moved to common v4 client
+// if only I find a way to properly wrap NfsArgop4
 
 func (cli *NFSv40Client) Compound(args ...NfsArgop4) (reply COMPOUND4res, err error) {
-		if (Config.Trace) {
-		fmt.Println()
-		fmt.Println("#", cli.sentNum, Tm(),
-			">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-		fmt.Println()
-		spew.Dump(args)
-	}
+	cli.Trace(args)
 	res, err := cli.RpcClient.Call(CompoundMessage{
 		Head: rpc.Header{
 			Rpcvers: 2,
@@ -228,18 +135,11 @@ func (cli *NFSv40Client) Compound(args ...NfsArgop4) (reply COMPOUND4res, err er
 			}
 		}
 	}
-
+	cli.SentNum++
 	// Parse reply at last
 	err = xdr.Read(res, &reply)
-	cli.recvNum++
-	if (Config.Trace) {
-		fmt.Println()
-		fmt.Println("#", cli.recvNum, Tm(),
-			"<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-		fmt.Println()
-		spew.Dump(reply)
-	}
-	cli.sentNum++
+	cli.RecvNum++
+	cli.Trace(reply)
 	if nil != err {
 		fmt.Printf("%s", err.Error())
 		return COMPOUND4res{Status:Nfs4ClientError}, err
@@ -251,52 +151,50 @@ func (cli *NFSv40Client) Compound(args ...NfsArgop4) (reply COMPOUND4res, err er
 	return reply, nil
 }
 
-func (cli *NFSv40Client) Null() (error) {
-	res, err := cli.RpcClient.Call(rpc.Header{
-		Rpcvers: 2,
-		Prog:    NFS4_PROGRAM,
-		Vers:    NFS_V4,
-		Proc:    NFSPROC4_NULL,
-		Cred:    cli.Auth,
-		Verf:    rpc.AuthNull,
-	})
-	if nil != err {
-		return err
-	}
-	if nil == res {
-		return errors.New("rpc returned nil")
-	}
-	var b []byte
-	res.Read(b)
-	if len(b) != 0 {
-		return errors.New("NFSv4.0 NULL returned non empty")
-	}
-	return nil
-}
-
-
 func (t *NFSv40Client) Pass(args ...NfsArgop4) ([]NfsResop4) {
 	reply, err := t.Compound(args...)
-	AssertNoErr(err)
-	AssertNfsOK(reply.Status)
+	Assert40.AssertNoErr(err)
+	Assert40.AssertNfsOK(reply.Status)
 	return reply.Resarray
 }
 
 
 func (t *NFSv40Client) Fail(stat int32, args ...NfsArgop4) ([]NfsResop4) {
 	res, err := t.Compound(args...)
-	AssertNoErr(err)
-	AssertStatus(res.Status, stat)
+	Assert40.AssertNoErr(err)
+	Assert40.AssertStatus(res.Status, stat)
 	return res.Resarray
 }
 
 func (t *NFSv40Client) FailOneOf(listOfErr []int32, args ...NfsArgop4) ([]NfsResop4) {
 	res, err := t.Compound(args...)
-	AssertNoErr(err)
-	AssertStatusOneOf(res.Status, listOfErr)
+	Assert40.AssertNoErr(err)
+	Assert40.AssertStatusOneOf(res.Status, listOfErr)
 	return res.Resarray
 }
 
+/////// these are minor version (v4.0) specific /////////////////////////////
+
+func (c *NFSv40Client) SetAndConfirmClientId() {
+	r := c.Pass(Setclientid(c.GetClientID(), c.GetCallBack(), 1))
+	c.ClientId = r[0].Opsetclientid.Resok4.Clientid
+	c.Verifier = r[0].Opsetclientid.Resok4.SetclientidConfirm
+	c.Pass(SetclientidConfirm(c.ClientId, c.Verifier))
+}
+
+func (cli *NFSv40Client) GetClientID() (NfsClientID4) {
+	// TODO: ???
+	return NfsClientID4{
+		Verifier: cli.Verifier,
+		ID: cli.Id}
+}
+
+func (cli *NFSv40Client) GetCallBack() (CbClient4) {
+	// TODO: real client, calculate address
+	return CbClient4{
+		CbProgram:0x40000000,
+		CbLocation: Clientaddr4{RNetid:"tcp", RAddr:"127.0.0.1.139.249"}}
+}
 
 func (t *NFSv40Client) GetRootFH() (NfsFh4) {
 	ret := t.Pass(Putrootfh(), Getfh())

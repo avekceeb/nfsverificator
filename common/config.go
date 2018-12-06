@@ -11,95 +11,66 @@ import (
 	"os/exec"
 	"bytes"
 	"text/template"
+	"strconv"
 )
 
 var (
 	Config         TestConfig
-	ConfigFile     string
+	configFile     string
+	serverOvr      string
+	exportOvr      string
+	traceOvr       string
 	bkgCmd         *exec.Cmd
 	funcMap        template.FuncMap
 )
 
 func init() {
-	flag.StringVar(&ConfigFile, "config", "", "Config File")
+	flag.StringVar(&configFile, "config", "", "Config File")
+	flag.StringVar(&serverOvr, "server", "", "NFS Server")
+	flag.StringVar(&exportOvr, "share", "", "NFS Share")
+	flag.StringVar(&traceOvr, "trace", "", "Print Packets")
 	funcMap = template.FuncMap{"timestamp":timestamp, "homedir":homedir}
 }
 
-type Server struct {
-	Host          string    `json:"host"`
-	Port          int       `json:"port"`
-	ExportsRW     []string  `json:"exports-rw"`
-	ExportsRO     []string  `json:"exports-ro"`
-	ExportsBlock  []string  `json:"exports-block-layout"`
-	RebootCmd     string    `json:"reboot-cmd"`
-	// these would be obtained by requests to server itself
-	//LeaseTime  int ?? (in client)
-	RefPath      string
-}
-
 type TestConfig struct {
-	DefaultServer string            `json:"default-server"`
-	Servers       map[string]Server `json:"servers"`
-	BkgCmd        string            `json:"background-cmd"`
-	Trace         bool              `json:"trace"`
+	Server        string    `json:"server"`
+	Port          int       `json:"port"`
+	Export        string    `json:"export"`
+	RebootCmd     string    `json:"reboot-cmd"`
+	BkgCmd        string    `json:"background-cmd"`
+	Trace         bool      `json:"trace"`
 	SuiteName     string
 }
 
-func ReadConfig(configPath string) (config TestConfig) {
-	jsonFile, err := os.Open(configPath)
-	if err != nil {
-		panic(err.Error())
+func ParseOptions() (config TestConfig) {
+	if configFile != "" {
+		jsonFile, err := os.Open(configFile)
+		if err != nil {
+			panic(err.Error())
+		}
+		defer jsonFile.Close()
+		bytes, err := ioutil.ReadAll(jsonFile)
+		if nil != err {
+			panic(err.Error())
+		}
+		json.Unmarshal(bytes, &config)
 	}
-	defer jsonFile.Close()
-	bytes, err := ioutil.ReadAll(jsonFile)
-	if nil != err {
-		panic(err.Error())
+	if "" != serverOvr {
+		config.Server = serverOvr
 	}
-	json.Unmarshal(bytes, &config)
-	if len(config.Servers) < 1 {
+	if "" != exportOvr {
+		config.Export = exportOvr
+	}
+	if "" != traceOvr {
+		if t,e:=strconv.ParseBool("true"); e==nil {
+			config.Trace = t
+		}
+	}
+	if "" == config.Server {
 		panic("No servers in config")
-	}
-	if ! config.SetDefaultServer(config.DefaultServer) {
-		panic("Wrong default server specified")
-	}
-	// TODO: not mandatory ?
-	if len(config.Servers[config.DefaultServer].ExportsRW) < 1 {
-		panic("No rw exports specified")
 	}
 	config.SuiteName = "default"
 	return config
-}
-
-func (c *TestConfig) SetDefaultServer(srv string) (bool) {
-	_, exists := c.Servers[srv]
-	if exists {
-		c.DefaultServer = srv
-	}
-	return exists
-}
-
-func (c *TestConfig) GetHost() string {
-	return c.Servers[c.DefaultServer].Host
-}
-
-func (c* TestConfig) GetPort() int {
-	return c.Servers[c.DefaultServer].Port
-}
-
-func (c *TestConfig) GetRWExport() string {
-	return c.Servers[c.DefaultServer].ExportsRW[0]
-}
-
-func (c *TestConfig) GetBlockExport() string {
-	if 0 != len(c.Servers[c.DefaultServer].ExportsBlock) {
-		return c.Servers[c.DefaultServer].ExportsBlock[0]
-	} else {
-		return ""
-	}
-}
-
-func (c *TestConfig) GetRefPath() string {
-	return c.Servers[c.DefaultServer].RefPath
 }
 
 //////// external background commands ////////////////
@@ -138,9 +109,8 @@ func (c *TestConfig) StopExternalCommands() {
 	}
 }
 
-// TODO: should be a server method
 func (c *TestConfig) RebootServer() {
-	cmdLine := c.Servers[c.DefaultServer].RebootCmd
+	cmdLine := c.RebootCmd
 	if "" == cmdLine {
 		return
 	}

@@ -43,18 +43,16 @@ var _ = Describe("Functional", func() {
 				Lookup(dirName), Lookup(dirName))
 			if c.AuthSys.Uid == 0 {
 					// root can do everything
-					AssertNfsOK(res.Status)
+					Assert40.AssertNfsOK(res.Status)
 			} else {
-					AssertStatus(res.Status, NFS4ERR_ACCESS)
+					Assert40.AssertStatus(res.Status, NFS4ERR_ACCESS)
 			}
 		})
 
 		It("PyNFS LOCK1", func() {
 			By("New client. TODO: toxic test, spoils seqid")
 			var c *NFSv40Client
-			c = NewNFSv40Client(
-				Config.GetHost(), Config.GetPort(),
-				RandString(8) + ".fake.net", 0, 0, RandString(8))
+			c = DefaultClient40()
 			c.SetAndConfirmClientId()
 
 			By("Open/create file for write")
@@ -92,10 +90,8 @@ var _ = Describe("Functional", func() {
 			c.Pass(Putfh(rootFH), Remove(openArgs.Opopen.Claim.File))
 		})
 
-		It("Lock held pynfs LOCKHELD", func() {
-			c1 := NewNFSv40Client(
-				Config.GetHost(), Config.GetPort(),
-				"lockheld." + RandString(6) + ".net", 0, 0, RandString(8))
+		It("Lock held on close", func() {
+			c1 := DefaultClient40()
 			c1.SetAndConfirmClientId()
 			openArgs := c1.OpenArgs()
 			//openArgs.Opopen.ShareAccess = OPEN4_SHARE_ACCESS_BOTH
@@ -130,15 +126,11 @@ var _ = Describe("Functional", func() {
 		It("Lock ranges", func() {
 
 			By("New client 1")
-			c1 := NewNFSv40Client(
-				Config.GetHost(), Config.GetPort(),
-				"one." + RandString(6) + ".net", 0, 0, RandString(8))
+			c1 := DefaultClient40()
 			c1.SetAndConfirmClientId()
 
 			By("New client 2")
-			c2 := NewNFSv40Client(
-				Config.GetHost(), Config.GetPort(),
-				"two." + RandString(6) + ".net", 0, 0, RandString(8))
+			c2 := DefaultClient40()
 			c2.SetAndConfirmClientId()
 
 			By("Open/create file for write, denying writes")
@@ -156,7 +148,7 @@ var _ = Describe("Functional", func() {
 			fh2 := GrabFh(&r)
 			openStateId_2 := c2.OpenConfirmMacro(&r)
 
-			Assert(AreFhEqual(fh, fh2), "fh not equal")
+			Assert40.Assert(AreFhEqual(fh, fh2), "fh not equal")
 
 			By("Write to file")
 			r = c1.Pass(Putfh(fh),
@@ -197,7 +189,7 @@ var _ = Describe("Functional", func() {
 				Write(lock1StateId, 0, UNSTABLE4, []byte(RandString(16))))
 			By("Write to 32-64")
 			c2.Pass(Putfh(fh),
-				Write(lock2StateId, 0, UNSTABLE4, []byte(RandString(16))))
+				Write(lock2StateId, 0/*32!!!*/, UNSTABLE4, []byte(RandString(16))))
 
 			lockuArgs := c1.LockuArgs(lock1StateId)
 			lockuArgs.Oplocku.Seqid = 1

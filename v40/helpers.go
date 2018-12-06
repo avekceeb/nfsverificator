@@ -6,7 +6,7 @@ func FhFromString(h string) (NfsFh4) {
     //return fh
 }
 
-func ErrorName(code int32) string {
+func ErrorNameNfs40(code int32) string {
 	switch code {
 	case NFS4_OK: return "NFS4_OK"
 	case NFS4ERR_PERM: return "NFS4ERR_PERM"

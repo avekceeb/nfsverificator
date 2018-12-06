@@ -1,31 +1,7 @@
 {
-	"default-server" : "example",
-	"uid" : 0,
-	"gid" : 0,
-	"background-cmd" : "/usr/bin/tcpdump -i lo -w {{homedir}}/{{.SuiteName}}-{{.DefaultServer}}-{{timestamp}}.pcap",
-	"trace" : true,
-	"servers" : {
-		"localhost" : {
-			"host" : "localhost",
-			"exports-rw" : ["/"],
-			"exports-ro" : [],
-			"exports-block-layout" : [],
-			"reboot-cmd" : ""
-		},
-		"example" : {
-			"host" : "10.162.81.54",
-			"port" : 12049,
-			"exports-rw" : ["/srv"],
-			"exports-ro" : [],
-			"exports-block-layout" : [],
-			"reboot-cmd" : ""
-		},
-		"ganesha" : {
-			"host" : "localhost",
-			"exports-rw" : ["/pseudo"],
-			"exports-ro" : [],
-			"exports-block-layout" : [],
-			"reboot-cmd" : ""
-		}
-	}
+	"server" : "localhost",
+	"export" : "/srv",
+	"trace" : false,
+	"background-cmd" : "/usr/bin/tcpdump -i lo -w {{homedir}}/{{.SuiteName}}-{{.Server}}-{{timestamp}}.pcap",
+	"reboot-cmd" : "sudo systemctl restart nfs-server"
 }

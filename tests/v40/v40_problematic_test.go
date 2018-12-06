@@ -13,15 +13,11 @@ var _ = Describe("Problematic", func() {
 		It("Release lock owner RFC7530 16.37", func() {
 
 			By("New client 1")
-			cli := NewNFSv40Client(
-				Config.GetHost(), Config.GetPort(),
-				RandString(8) + ".fake.net", 0, 0, RandString(8))
+			cli := DefaultClient40()
 			cli.SetAndConfirmClientId()
 
 			By("New client 2")
-			cli2 := NewNFSv40Client(
-				Config.GetHost(), Config.GetPort(),
-				RandString(8) + ".fake.net", 0, 0, RandString(8))
+			cli2 := DefaultClient40()
 			cli2.SetAndConfirmClientId()
 
 			openArgs := cli.OpenArgs()
@@ -32,7 +28,8 @@ var _ = Describe("Problematic", func() {
 			r := cli.Pass(Putfh(rootFH), openArgs, Getfh())
 			r2 := cli2.Pass(Putfh(rootFH), openArgs2, Getfh())
 			fh := GrabFh(&r)
-			Assert(AreFhEqual(fh, GrabFh(&r2)), "Fh should be the same")
+			Assert40.Assert(AreFhEqual(fh, GrabFh(&r2)),
+				"Fh should be the same")
 
 			stateId := r[1].Opopen.Resok4.Stateid
 			stateId2 := r2[1].Opopen.Resok4.Stateid

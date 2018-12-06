@@ -3,7 +3,6 @@ package v40tests
 import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/avekceeb/nfsverificator/v40"
-	. "github.com/avekceeb/nfsverificator/common"
 	"time"
 )
 
@@ -14,20 +13,11 @@ var _ = Describe("Expiration", func() {
 		It("Renew and state_id expired PyNFS RENEW3", func() {
 
 			By("Creating new client")
-			cliExpiring := NewNFSv40Client(
-				Config.GetHost(), Config.GetPort(),
-				RandString(8)+".fake.net", 0, 0, RandString(8))
+			cliExpiring := DefaultClient40()
 			cliExpiring.SetAndConfirmClientId()
 
 			By("Check that renew works")
 			cliExpiring.Pass(Renew(cliExpiring.ClientId))
-
-			By("Create file")
-			r := cliExpiring.Pass(Putfh(rootFH), cliExpiring.OpenArgs(), Getfh())
-			fh := GrabFh(&r)
-			stateId := r[1].Opopen.Resok4.Stateid
-			r = cliExpiring.Pass(Putfh(fh), OpenConfirm(stateId, cliExpiring.Seq))
-			stateId = r[1].OpopenConfirm.Resok4.OpenStateid
 
 			By("Imitate network partition in new client")
 			interval := time.Second * time.Duration(c.LeaseTime / 6)

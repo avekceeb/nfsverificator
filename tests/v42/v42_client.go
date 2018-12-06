@@ -3,14 +3,14 @@ package v42tests
 // TODO: may be it is 99% identical to v41...
 
 import (
-	"math/rand"
 	"errors"
 	"fmt"
 	"github.com/avekceeb/nfsverificator/rpc"
 	"github.com/avekceeb/nfsverificator/xdr"
+	. "github.com/avekceeb/nfsverificator/tests"
 	. "github.com/avekceeb/nfsverificator/v42"
 	. "github.com/avekceeb/nfsverificator/common"
-	"github.com/onsi/ginkgo"
+	"math/rand"
 )
 
 const (
@@ -18,6 +18,7 @@ const (
 )
 
 var (
+	Assert42 Assertion
 	DefProtect = StateProtect4A{SpaHow:0}
 	DefImpl = []NfsImplID4{{
 				NiiDate:Nfstime4{Seconds: 0, Nseconds: 0},
@@ -40,53 +41,9 @@ var (
 	}
 )
 
-func ErrorName(code int32) string {
-	return fmt.Sprintf("<<<%d>>>", code)
+func init() {
+	Assert42 = Assertion{ErrorName:ErrorNameNfs42}
 }
-
-/**********************************************
-	Minimalist Assertion infrastructure
-***********************************************/
-
-func Assert(condition bool, errMessage string) {
-	if ! condition {
-		ginkgo.Fail(errMessage)
-	}
-}
-
-func AssertStatus(actual int32, expected int32) {
-	Assert(actual == expected,
-		fmt.Sprintf("Expected: %s  Got: %s",
-			ErrorName(expected), ErrorName(actual)))
-}
-
-func AssertNfsOK(actual int32) {
-	AssertStatus(actual, NFS4_OK)
-}
-
-func AssertNoErr(err error) {
-	if err != nil {
-		ginkgo.Fail(fmt.Sprintf(
-			"Unexpected error: %s", err.Error()))
-	}
-}
-
-////////// helpers ///////////////
-
-func Uint64ToVerifier(r uint64) (Verifier4) {
-	return Verifier4{
-		byte(r & 0xff), byte((r & 0xff00) >> 8),
-		byte((r & 0xff0000) >> 16), byte((r & 0xff000000) >> 24),
-		byte((r & 0xff000000) >> 32), byte((r & 0xff0000000000) >> 40),
-		byte((r & 0xff000000000000) >> 48), byte((r & 0xff00000000000000) >> 56),
-	}
-}
-
-func LastRes(res *([]NfsResop4)) (*NfsResop4) {
-	return &((*res)[len(*res)-1])
-}
-
-//////////////////////////////////
 
 type ArgArrayT struct {
 	Args []NfsArgop4
@@ -98,39 +55,18 @@ type CompoundMessage struct {
 }
 
 type NFSv42Client struct {
-	RpcClient      *rpc.Client
-	Auth           rpc.Auth
-	AuthSys        AuthsysParms
-	ClientId       uint64
-	Seq            uint32 // TODO ??
+	*Nfs4Client
 	Verifier       Verifier4
-	Id             string
 	// TODO: per server / per session
 	// Now only one session
 	Sid            Sessionid4
+	EidFlags       uint32
 	// Now only fore channel
 	ForeChAttr     ChannelAttrs4
-	Server         string
-	// TODO:
-	LeaseTime      uint32
-	DL             bool
-	XT             bool
-	LU             bool
-	MD             bool
-	RD             bool
-}
-
-func (cli *NFSv42Client) MockReboot() {
-	cli.Seq = 0
-	cli.Verifier = Uint64ToVerifier(rand.Uint64())
-}
-
-func (cli *NFSv42Client) Close() {
-	cli.RpcClient.Close()
 }
 
 func (cli *NFSv42Client) Compound(args ...NfsArgop4) (reply COMPOUND4res, err error) {
-	res, err := cli.RpcClient.Call(CompoundMessage{
+	msg := CompoundMessage{
 		Head: rpc.Header{
 			Rpcvers: 2,
 			Prog:    NFS4_PROGRAM,
@@ -144,7 +80,9 @@ func (cli *NFSv42Client) Compound(args ...NfsArgop4) (reply COMPOUND4res, err er
 			Minorversion: 2,
 			Argarray: args,
 		},
-	})
+	}
+	cli.Trace(msg)
+	res, err := cli.RpcClient.Call(msg)
 	if nil != err {
 		return COMPOUND4res{Status:Nfs4ClientError}, err
 	}
@@ -153,6 +91,7 @@ func (cli *NFSv42Client) Compound(args ...NfsArgop4) (reply COMPOUND4res, err er
 	}
 	// Parse reply at last
 	err = xdr.Read(res, &reply)
+	cli.Trace(reply)
 	if nil != err {
 		fmt.Printf("%s", err.Error())
 		return COMPOUND4res{Status:Nfs4ClientError}, err
@@ -172,61 +111,29 @@ func (cli *NFSv42Client) Compound(args ...NfsArgop4) (reply COMPOUND4res, err er
 	return reply, nil
 }
 
-func (cli*NFSv42Client) Null() (error) {
-	res, err := cli.RpcClient.Call(rpc.Header{
-		Rpcvers: 2,
-		Prog:    NFS4_PROGRAM,
-		Vers:    NFS_V4,
-		Proc:    NFSPROC4_NULL,
-		Cred:    cli.Auth,
-		Verf:    rpc.AuthNull,
-	})
-	if nil != err {
-		return err
-	}
-	if nil == res {
-		return errors.New("rpc returned nil")
-	}
-	var b []byte
-	res.Read(b)
-	if len(b) != 0 {
-		return errors.New("NFSv4.2 NULL returned non empty")
-	}
-	return nil
-}
-
-
-func NewNFSv41Client(srvHost string, srvPort int, authHost string, uid uint32, gid uint32, cid string) (*NFSv42Client) {
-	client := NFSv42Client{}
-	u := rpc.NewAuthUnix(authHost, uid, gid)
-	client.Auth = u.Auth()
-	client.AuthSys = AuthsysParms{
-		Stamp:u.Stamp, Uid:uid, Gid:gid, Machinename:authHost, GidLen:0}
-	var err error
-	if 0 == srvPort {
-		srvPort = 2049
-	}
-	client.RpcClient, err = rpc.DialService(srvHost, srvPort)
-	if err != nil {
-		panic(err.Error())
-	}
-	client.Id = cid
-	client.MockReboot()
-	client.Server = srvHost
+func NewNFSv41Client(srvHost string, srvPort int, authHost string, uid uint32, gid uint32, cid string, trace bool) (*NFSv42Client) {
+	r := rand.Uint64()
+	client := NFSv42Client{NewNfs4Client(
+		srvHost, srvPort, authHost, uid, gid, cid, trace), Verifier4{
+			byte(r&0xff), byte((r&0xff00)>>8),
+			byte((r&0xff0000)>>16), byte((r&0xff000000)>>24),
+			byte((r&0xff000000)>>32), byte((r&0xff0000000000)>>40),
+			byte((r&0xff000000000000)>>48), byte((r&0xff00000000000000)>>56),
+	}, Sessionid4{}, 0, ChannelAttrs4{}}
 	return &client
 }
 
 func NewNFSv42DefaultClient() (*NFSv42Client) {
-	return NewNFSv41Client(Config.GetHost(), Config.GetPort(),
-		RandString(8) + ".fake.net", 0, 0, RandString(8))
+	return NewNFSv41Client(Config.Server, Config.Port,
+		RandString(8) + ".fake.net", 0, 0, RandString(8), Config.Trace)
 }
 
 // HELPERS FOR CHECK COMPOUND STATUS //
 
 func (t *NFSv42Client) Pass(args ...NfsArgop4) ([]NfsResop4) {
 	reply, err := t.Compound(args...)
-	AssertNoErr(err)
-	AssertNfsOK(reply.Status)
+	Assert42.AssertNoErr(err)
+	Assert42.AssertNfsOK(reply.Status)
 	// Note: not checking every op in compound, only overall status
 	return reply.Resarray
 }
@@ -234,8 +141,8 @@ func (t *NFSv42Client) Pass(args ...NfsArgop4) ([]NfsResop4) {
 
 func (t *NFSv42Client) Fail(stat int32, args ...NfsArgop4) ([]NfsResop4) {
 	res, err := t.Compound(args...)
-	AssertNoErr(err)
-	AssertStatus(res.Status, stat)
+	Assert42.AssertNoErr(err)
+	Assert42.AssertStatus(res.Status, stat)
 	return res.Resarray
 }
 
@@ -313,18 +220,18 @@ func (cli *NFSv42Client) GetSomeAttr() {
 		Getfh(),
 		Getattr(MakeGetAttrFlags(FATTR4_LEASE_TIME)))
 	cli.LeaseTime = BytesToUint32(LastRes(&l).Opgetattr.Resok4.ObjAttributes.AttrVals)
-	r := cli.Pass(
-		Sequence(cli.Sid, cli.Seq, 0, 0, false),
-		Putrootfh(),
-		Access(MakeUint32Flags(ACCESS4_DELETE, ACCESS4_EXTEND, ACCESS4_LOOKUP, ACCESS4_MODIFY,
-			ACCESS4_READ, ACCESS4_EXECUTE)),
-	)
-	access := LastRes(&r).Opaccess.Resok4.Access
-	cli.DL = CheckFlag(access, ACCESS4_DELETE)
-	cli.XT = CheckFlag(access, ACCESS4_EXTEND)
-	cli.LU = CheckFlag(access, ACCESS4_LOOKUP)
-	cli.MD = CheckFlag(access, ACCESS4_MODIFY)
-	cli.RD = CheckFlag(access, ACCESS4_READ)
+	//r := cli.Pass(
+	//	Sequence(cli.Sid, cli.Seq, 0, 0, false),
+	//	Putrootfh(),
+	//	Access(MakeUint32Flags(ACCESS4_DELETE, ACCESS4_EXTEND, ACCESS4_LOOKUP, ACCESS4_MODIFY,
+	//		ACCESS4_READ, ACCESS4_EXECUTE)),
+	//)
+	//access := LastRes(&r).Opaccess.Resok4.Access
+	//cli.DL = CheckFlag(access, ACCESS4_DELETE)
+	//cli.XT = CheckFlag(access, ACCESS4_EXTEND)
+	//cli.LU = CheckFlag(access, ACCESS4_LOOKUP)
+	//cli.MD = CheckFlag(access, ACCESS4_MODIFY)
+	//cli.RD = CheckFlag(access, ACCESS4_READ)
 	// TODO : execute ???
 
 }

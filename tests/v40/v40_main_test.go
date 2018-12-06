@@ -22,7 +22,7 @@ var (
 
 func init() {
 	flag.Parse()
-	Config = ReadConfig(ConfigFile)
+	Config = ParseOptions()
 	notExisting = "v4-not-exists-" + RandString(16)
 	globalFile  = "v4-global-" + RandString(16)
 	globalDir   = "v4-global-" + RandString(16)
@@ -32,11 +32,10 @@ func init() {
 var _ = Describe("Before-After", func(){
 
 	BeforeSuite(func() {
-		c = NewNFSv40Client(Config.GetHost(), Config.GetPort(),
-			RandString(8)+".fake.net", 0, 0, RandString(8))
+		c = DefaultClient40()
 		c.SetAndConfirmClientId()
 		c.GetSomeAttr()
-		export = Config.GetRWExport()
+		export = Config.Export
 		rootFH = c.GetExportFH(export)
 		By("Global File")
 		openArgs := c.OpenArgs()

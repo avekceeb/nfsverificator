@@ -37,9 +37,7 @@ func Task(j int) {
 
 func BackgroundClient() (error) {
 	for i:=0;i<1000;i++ {
-		c := NewNFSv40Client(Config.GetHost(),
-			Config.GetPort(),
-			RandString(8) + ".flash.mob", 0, 0, RandString(8))
+		c := DefaultClient40()
 		r, _ := c.Compound(
 			Setclientid(c.GetClientID(), c.GetCallBack(), 1))
 		c.ClientId = r.Resarray[0].Opsetclientid.Resok4.Clientid

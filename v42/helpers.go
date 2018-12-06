@@ -1,6 +1,13 @@
-package v41
+package v42
 
-func ErrorNameNfs41(code int32) string {
+func FhFromString(h string) (NfsFh4) {
+    return NfsFh4([]byte(h))
+    //copy(fh[:], s[:NFS4_FHSIZE])
+    //return fh
+}
+
+// TODO: this is from v4.1 !!!!!!
+func ErrorNameNfs42(code int32) string {
 	switch code {
 	case NFS4_OK: return "NFS4_OK"
 	case NFS4ERR_PERM: return "NFS4ERR_PERM"
@@ -40,7 +47,8 @@ func ErrorNameNfs41(code int32) string {
 	case NFS4ERR_RESOURCE: return "NFS4ERR_RESOURCE"
 	case NFS4ERR_MOVED: return "NFS4ERR_MOVED"
 	case NFS4ERR_NOFILEHANDLE: return "NFS4ERR_NOFILEHANDLE"
-	case NFS4ERR_MINOR_VERS_MISMATCH: return "NFS4ERR_MINOR_VERS_MISMATCH"
+	case NFS4ERR_MINOR_VERS_MISMATCH:
+		return "NFS4ERR_MINOR_VERS_MISMATCH"
 	case NFS4ERR_STALE_CLIENTID: return "NFS4ERR_STALE_CLIENTID"
 	case NFS4ERR_STALE_STATEID: return "NFS4ERR_STALE_STATEID"
 	case NFS4ERR_OLD_STATEID: return "NFS4ERR_OLD_STATEID"
@@ -68,48 +76,17 @@ func ErrorNameNfs41(code int32) string {
 	case NFS4ERR_FILE_OPEN: return "NFS4ERR_FILE_OPEN"
 	case NFS4ERR_ADMIN_REVOKED: return "NFS4ERR_ADMIN_REVOKED"
 	case NFS4ERR_CB_PATH_DOWN: return "NFS4ERR_CB_PATH_DOWN"
-	case NFS4ERR_BADIOMODE: return "NFS4ERR_BADIOMODE"
-	case NFS4ERR_BADLAYOUT: return "NFS4ERR_BADLAYOUT"
-	case NFS4ERR_BAD_SESSION_DIGEST: return "NFS4ERR_BAD_SESSION_DIGEST"
-	case NFS4ERR_BADSESSION: return "NFS4ERR_BADSESSION"
-	case NFS4ERR_BADSLOT: return "NFS4ERR_BADSLOT"
-	case NFS4ERR_COMPLETE_ALREADY: return "NFS4ERR_COMPLETE_ALREADY"
-	case NFS4ERR_CONN_NOT_BOUND_TO_SESSION:
-		return "NFS4ERR_CONN_NOT_BOUND_TO_SESSION"
-	case NFS4ERR_DELEG_ALREADY_WANTED: return "NFS4ERR_DELEG_ALREADY_WANTED"
-	case NFS4ERR_BACK_CHAN_BUSY: return "NFS4ERR_BACK_CHAN_BUSY"
-	case NFS4ERR_LAYOUTTRYLATER: return "NFS4ERR_LAYOUTTRYLATER"
-	case NFS4ERR_LAYOUTUNAVAILABLE: return "NFS4ERR_LAYOUTUNAVAILABLE"
-	case NFS4ERR_NOMATCHING_LAYOUT: return "NFS4ERR_NOMATCHING_LAYOUT"
-	case NFS4ERR_RECALLCONFLICT: return "NFS4ERR_RECALLCONFLICT"
-	case NFS4ERR_UNKNOWN_LAYOUTTYPE: return "NFS4ERR_UNKNOWN_LAYOUTTYPE"
-	case NFS4ERR_SEQ_MISORDERED: return "NFS4ERR_SEQ_MISORDERED"
-	case NFS4ERR_SEQUENCE_POS: return "NFS4ERR_SEQUENCE_POS"
-	case NFS4ERR_REQ_TOO_BIG: return "NFS4ERR_REQ_TOO_BIG"
-	case NFS4ERR_REP_TOO_BIG: return "NFS4ERR_REP_TOO_BIG"
-	case NFS4ERR_REP_TOO_BIG_TO_CACHE: return "NFS4ERR_REP_TOO_BIG_TO_CACHE"
-	case NFS4ERR_RETRY_UNCACHED_REP: return "NFS4ERR_RETRY_UNCACHED_REP"
-	case NFS4ERR_UNSAFE_COMPOUND: return "NFS4ERR_UNSAFE_COMPOUND"
-	case NFS4ERR_TOO_MANY_OPS: return "NFS4ERR_TOO_MANY_OPS"
-	case NFS4ERR_OP_NOT_IN_SESSION: return "NFS4ERR_OP_NOT_IN_SESSION"
-	case NFS4ERR_HASH_ALG_UNSUPP: return "NFS4ERR_HASH_ALG_UNSUPP"
-	case NFS4ERR_CLIENTID_BUSY: return "NFS4ERR_CLIENTID_BUSY"
-	case NFS4ERR_PNFS_IO_HOLE: return "NFS4ERR_PNFS_IO_HOLE"
-	case NFS4ERR_SEQ_FALSE_RETRY: return "NFS4ERR_SEQ_FALSE_RETRY"
-	case NFS4ERR_BAD_HIGH_SLOT: return "NFS4ERR_BAD_HIGH_SLOT"
-	case NFS4ERR_DEADSESSION: return "NFS4ERR_DEADSESSION"
-	case NFS4ERR_ENCR_ALG_UNSUPP: return "NFS4ERR_ENCR_ALG_UNSUPP"
-	case NFS4ERR_PNFS_NO_LAYOUT: return "NFS4ERR_PNFS_NO_LAYOUT"
-	case NFS4ERR_NOT_ONLY_OP: return "NFS4ERR_NOT_ONLY_OP"
-	case NFS4ERR_WRONG_CRED: return "NFS4ERR_WRONG_CRED"
-	case NFS4ERR_WRONG_TYPE: return "NFS4ERR_WRONG_TYPE"
-	case NFS4ERR_DIRDELEG_UNAVAIL: return "NFS4ERR_DIRDELEG_UNAVAIL"
-	case NFS4ERR_REJECT_DELEG: return "NFS4ERR_REJECT_DELEG"
-	case NFS4ERR_RETURNCONFLICT: return "NFS4ERR_RETURNCONFLICT"
-	case NFS4ERR_DELEG_REVOKED: return "NFS4ERR_DELEG_REVOKED"
 	default:
 		return "UNKNOWN"
 	}
+}
+
+func LastRes(res *([]NfsResop4)) (*NfsResop4) {
+	return &((*res)[len(*res)-1])
+}
+
+func GrabFh(res *([]NfsResop4)) (NfsFh4) {
+	return LastRes(res).Opgetfh.Resok4.Object
 }
 
 func AreFhEqual(a, b NfsFh4) bool {
@@ -122,21 +99,4 @@ func AreFhEqual(a, b NfsFh4) bool {
         }
     }
     return true
-}
-
-func Uint64ToVerifier(r uint64) (Verifier4) {
-	return Verifier4{
-		byte(r & 0xff), byte((r & 0xff00) >> 8),
-		byte((r & 0xff0000) >> 16), byte((r & 0xff000000) >> 24),
-		byte((r & 0xff000000) >> 32), byte((r & 0xff0000000000) >> 40),
-		byte((r & 0xff000000000000) >> 48), byte((r & 0xff00000000000000) >> 56),
-	}
-}
-
-func LastRes(res *([]NfsResop4)) (*NfsResop4) {
-	return &((*res)[len(*res)-1])
-}
-
-func GrabFh(res *([]NfsResop4)) (NfsFh4) {
-	return LastRes(res).Opgetfh.Resok4.Object
 }

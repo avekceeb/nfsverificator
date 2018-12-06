@@ -1,16 +1,6 @@
 package v42
 
-// TODO: to GSS or smth
-// Added manually (Dmitry A.)
-type AuthsysParms struct {
-	Stamp       uint32
-	Machinename string
-	Uid         uint32
-	Gid         uint32
-	GidLen      uint32
-	// this was producing extra 4-byte field
-	//Gids        uint32
-}
+import "github.com/avekceeb/nfsverificator/v4"
 
 const (
 	// Enums:
@@ -2345,7 +2335,7 @@ type RENAME4res struct {
 
 
 type Secinfo4 struct {
-	Flavor uint32 `xdr:"union"`
+	Flavor int32 `xdr:"union"`
 	FlavorInfo  RpcsecGssInfo  `xdr:"unioncase=RPCSEC_GSS"` // Gss
 }
 
@@ -2369,11 +2359,11 @@ type WRITE4res struct {
 }
 
 type CallbackSecParms4 struct {
-	CbSecflavor uint32 `xdr:"union"`
+	CbSecflavor int32 `xdr:"union"`
 	//    `xdr:"unioncase=AUTH_NONE"` // None
 	// TODO: ?????
-	CbspSysCred  AuthsysParms  `xdr:"unioncase=1"` // Sys
-	CbspGssHandles  GssCbHandles4  `xdr:"unioncase=1"` // Gss
+	CbspSysCred  v4.AuthsysParms  `xdr:"unioncase=1"` // Sys
+	CbspGssHandles  GssCbHandles4  `xdr:"unioncase=2"` // Gss
 }
 
 

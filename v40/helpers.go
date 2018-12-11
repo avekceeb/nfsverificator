@@ -6,6 +6,53 @@ func FhFromString(h string) (NfsFh4) {
     //return fh
 }
 
+func OpNameNfs40(code int32) string {
+	switch code {
+	case OP_ACCESS: return "ACCESS"
+	case OP_CLOSE: return "CLOSE"
+	case OP_COMMIT: return "COMMIT"
+	case OP_CREATE: return "CREATE"
+	case OP_DELEGPURGE: return "DELEGPURGE"
+	case OP_DELEGRETURN: return "DELEGRETURN"
+	case OP_GETATTR: return "GETATTR"
+	case OP_GETFH: return "GETFH"
+	case OP_LINK: return "LINK"
+	case OP_LOCK: return "LOCK"
+	case OP_LOCKT: return "LOCKT"
+	case OP_LOCKU: return "LOCKU"
+	case OP_LOOKUP: return "LOOKUP"
+	case OP_LOOKUPP: return "LOOKUPP"
+	case OP_NVERIFY: return "NVERIFY"
+	case OP_OPEN: return "OPEN"
+	case OP_OPENATTR: return "OPENATTR"
+	case OP_OPEN_CONFIRM: return "OPEN_CONFIRM"
+	case OP_OPEN_DOWNGRADE: return "OPEN_DOWNGRADE"
+	case OP_PUTFH: return "PUTFH"
+	case OP_PUTPUBFH: return "PUTPUBFH"
+	case OP_PUTROOTFH: return "PUTROOTFH"
+	case OP_READ: return "READ"
+	case OP_READDIR: return "READDIR"
+	case OP_READLINK: return "READLINK"
+	case OP_REMOVE: return "REMOVE"
+	case OP_RENAME: return "RENAME"
+	case OP_RENEW: return "RENEW"
+	case OP_RESTOREFH: return "RESTOREFH"
+	case OP_SAVEFH: return "SAVEFH"
+	case OP_SECINFO: return "SECINFO"
+	case OP_SETATTR: return "SETATTR"
+	case OP_SETCLIENTID: return "SETCLIENTID"
+	case OP_SETCLIENTID_CONFIRM: return "SETCLIENTID_CONFIRM"
+	case OP_VERIFY: return "VERIFY"
+	case OP_WRITE: return "WRITE"
+	case OP_RELEASE_LOCKOWNER: return "RELEASE_LOCKOWNER"
+	case OP_ILLEGAL: return "ILLEGAL"
+	//case OP_CB_GETATTR: return "CB_GETATTR"
+	//case OP_CB_RECALL: return "CB_RECALL"
+	//case OP_CB_ILLEGAL: return "CB_ILLEGAL"
+	}
+	return "UNKNOWN"
+}
+
 func ErrorNameNfs40(code int32) string {
 	switch code {
 	case NFS4_OK: return "NFS4_OK"

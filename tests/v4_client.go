@@ -89,7 +89,7 @@ func (cli *Nfs4Client) Null() (error) {
 func (cli *Nfs4Client) Trace(args... interface{}) {
 	if cli.DoTrace {
 		t := time.Now()
-		fmt.Println()
+		//fmt.Println()
 		fmt.Println("#", cli.SentNum,
 			fmt.Sprintf("[%02d:%02d:%02d]",
 				t.Hour(), t.Minute(), t.Second()),

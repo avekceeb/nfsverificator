@@ -67,6 +67,14 @@ type CompoundMessage struct {
 	Args COMPOUND4args
 }
 
+func opsNames(args ...NfsArgop4) string {
+	s := []string{}
+	for i := range args {
+		s = append(s, OpNameNfs40(args[i].Argop))
+	}
+	return strings.Join(s, "|")
+}
+
 func DefaultClient40() (*NFSv40Client) {
 	return NewNFSv40Client(Config.Server, Config.Port,
 		RandString(8) + ".fake.net", 0, 0, RandString(8), Config.Trace)
@@ -94,6 +102,8 @@ func (cli *NFSv40Client) Close() {
 // if only I find a way to properly wrap NfsArgop4
 
 func (cli *NFSv40Client) Compound(args ...NfsArgop4) (reply COMPOUND4res, err error) {
+	fmt.Println()
+	fmt.Println(opsNames(args...))
 	cli.Trace(args)
 	res, err := cli.RpcClient.Call(CompoundMessage{
 		Head: rpc.Header{
